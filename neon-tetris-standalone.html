@@ -1,0 +1,5456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070012" />
+  <meta
+    name="description"
+    content="NEON TETRIS — a professional neon arcade Tetris game built with HTML5 Canvas and modern ES6 JavaScript."
+  />
+  <title>NEON TETRIS</title>
+
+  <!--
+    Neon display + body fonts (Orbitron / Rajdhani).
+    For fully offline builds, self-host the woff2 files in assets/fonts
+    and replace these links with local @font-face declarations.
+  -->
+
+  <style>
+/* ==========================================================================
+   NEON TETRIS — Arcade Interface Stylesheet
+   --------------------------------------------------------------------------
+   Design tokens, responsive layout, neon glow borders, sidebar panels,
+   and interactive controls.  No gameplay styles — purely the shell.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Design Tokens (CSS custom properties)
+   -------------------------------------------------------------------------- */
+:root {
+  /* ---------- Palette ---------- */
+  --color-bg: #070012;
+  --color-bg-deep: #04000c;
+  --color-bg-panel: #0a001a;
+  --color-bg-button: rgba(0, 229, 255, 0.08);
+  --color-bg-button-hover: rgba(0, 229, 255, 0.18);
+  --color-bg-button-active: rgba(0, 229, 255, 0.28);
+
+  --color-neon-cyan: #00e5ff;
+  --color-neon-pink: #ff2965;
+  --color-neon-purple: #b026ff;
+  --color-neon-green: #00ff9d;
+  --color-neon-yellow: #ffe500;
+  --color-neon-blue: #3d8bff;
+  --color-neon-orange: #ff9f1c;
+
+  --color-text: #eaeaff;
+  --color-text-dim: rgba(234, 234, 255, 0.55);
+  --color-text-muted: rgba(234, 234, 255, 0.30);
+
+  --color-border: rgba(0, 229, 255, 0.25);
+  --color-border-strong: rgba(0, 229, 255, 0.50);
+  --color-border-glow: rgba(0, 229, 255, 0.12);
+
+  /* ---------- Glow Effects ---------- */
+  --glow-cyan: 0 0 14px rgba(0, 229, 255, 0.65);
+  --glow-cyan-soft: 0 0 24px rgba(0, 229, 255, 0.12);
+  --glow-cyan-panel: 0 0 18px rgba(0, 229, 255, 0.08);
+  --glow-pink: 0 0 14px rgba(255, 41, 101, 0.65);
+  --glow-purple: 0 0 14px rgba(176, 38, 255, 0.65);
+
+  /* ---------- Typography ---------- */
+  --font-display: 'Orbitron', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Rajdhani', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Courier New', monospace;
+
+  /* ---------- Spacing & Sizing ---------- */
+  --sidebar-width: 180px;
+  --panel-radius: 8px;
+  --panel-padding: 0.6rem;
+  --stage-max-width: 640px;
+  --stage-aspect-ratio: 5 / 6;
+
+  /* ---------- Z-Index Scale ---------- */
+  --z-canvas: 1;
+  --z-panels: 2;
+  --z-buttons: 3;
+  --z-overlay: 10;
+}
+
+/* --------------------------------------------------------------------------
+   2. Base Reset
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. Application Shell — flexbox arcade cabinet
+   -------------------------------------------------------------------------- */
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  height: 100%;
+  max-width: var(--stage-max-width);
+  padding: clamp(0.5rem, 1.5vh, 1.25rem);
+}
+
+/* --------------------------------------------------------------------------
+   4. Header — Title Bar
+   -------------------------------------------------------------------------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.app-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(1rem, 3.5vh, 1.75rem);
+  letter-spacing: 0.30em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-shadow: var(--glow-pink);
+  animation: titlePulse 2.4s ease-in-out infinite;
+  line-height: 1;
+}
+
+.app-title-accent {
+  color: var(--color-neon-cyan);
+  text-shadow: var(--glow-cyan);
+}
+
+@keyframes titlePulse {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.82; filter: brightness(1.25); }
+}
+
+/* ---------- Header Controls ---------- */
+.header-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   5. Buttons
+   -------------------------------------------------------------------------- */
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  background: var(--color-bg-button);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--color-bg-button-hover);
+  border-color: var(--color-border-strong);
+  box-shadow: var(--glow-cyan-soft);
+}
+
+.btn:active {
+  background: var(--color-bg-button-active);
+}
+
+.btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-neon-cyan);
+}
+
+.btn-icon {
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   6. Main Game Area — sidebar + stage
+   -------------------------------------------------------------------------- */
+.game-arena {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+/* --------------------------------------------------------------------------
+   6b. Playfield column — must be a growing flex item so the stage
+   (its child) has actual space to size itself within.
+   -------------------------------------------------------------------------- */
+.playfield-column {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   7. Game Stage (Canvas container)
+   -------------------------------------------------------------------------- */
+.game-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  aspect-ratio: var(--stage-aspect-ratio);
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border);
+  border-radius: var(--panel-radius);
+  box-shadow:
+    var(--glow-cyan-soft),
+    inset 0 0 32px rgba(0, 229, 255, 0.06);
+  overflow: hidden;
+}
+
+#game-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-canvas);
+}
+
+.no-canvas {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-text-dim);
+}
+
+/* --------------------------------------------------------------------------
+   8. Right Sidebar — panel stack
+   -------------------------------------------------------------------------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: var(--sidebar-width);
+  flex: 0 0 auto;
+  overflow-y: auto;
+}
+
+/* ---------- Panel ---------- */
+.panel {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-glow);
+  border-radius: var(--panel-radius);
+  padding: var(--panel-padding);
+  box-shadow: var(--glow-cyan-panel);
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.25rem;
+}
+
+.panel-value {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-neon-cyan);
+  text-shadow: var(--glow-cyan);
+  line-height: 1.2;
+  min-height: 1.4em;
+}
+
+/* ---------- Score (larger) ---------- */
+.panel-score .panel-value {
+  font-size: 1.5rem;
+  color: var(--color-neon-pink);
+  text-shadow: var(--glow-pink);
+}
+
+/* ---------- High Score ---------- */
+.panel-high-score .panel-value {
+  font-size: 0.9rem;
+  color: var(--color-neon-yellow);
+  text-shadow: 0 0 10px rgba(255, 229, 0, 0.5);
+}
+
+/* ---------- Next & Hold Piece Preview Boxes ---------- */
+.piece-preview {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 100px;
+  margin-top: 0.2rem;
+}
+
+.piece-preview canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Pause / main menu overlay ---------- */
+.pause-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 0, 12, 0.46);
+  backdrop-filter: blur(9px) saturate(0.8);
+  -webkit-backdrop-filter: blur(9px) saturate(0.8);
+  animation: overlayFadeIn 180ms ease-out;
+}
+
+.pause-overlay[hidden] { display: none; }
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; backdrop-filter: blur(0) saturate(1); }
+  to { opacity: 1; backdrop-filter: blur(9px) saturate(0.8); }
+}
+
+.pause-menu {
+  width: min(22rem, 100%);
+  padding: 1.35rem;
+  text-align: center;
+  background: rgba(10, 0, 26, 0.94);
+  border: 1px solid var(--color-border-strong);
+  border-radius: calc(var(--panel-radius) * 1.5);
+  box-shadow: 0 0 38px rgba(0, 229, 255, 0.2), 0 0 70px rgba(176, 38, 255, 0.15);
+  animation: pauseMenuEnter 160ms ease-out;
+}
+
+.pause-kicker {
+  margin-bottom: 0.3rem;
+  color: var(--color-neon-cyan);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.pause-menu h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: var(--glow-cyan);
+}
+
+.pause-shortcut {
+  margin: 0.65rem 0 1rem;
+  color: var(--color-text-dim);
+  font-size: 0.9rem;
+}
+
+kbd {
+  padding: 0.08rem 0.3rem;
+  font-family: var(--font-mono);
+  color: var(--color-neon-cyan);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.pause-menu-actions { display: grid; gap: 0.5rem; }
+
+.menu-btn {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-bg-button);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.menu-btn::before, .btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+  transform: translateX(-125%);
+  transition: transform 320ms ease;
+}
+
+.menu-btn:hover::before, .btn:hover::before { transform: translateX(125%); }
+
+.menu-btn:hover, .menu-btn:focus-visible {
+  background: var(--color-bg-button-hover);
+  box-shadow: var(--glow-cyan-soft);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.menu-btn:active, .btn:active { transform: translateY(1px) scale(0.98); }
+
+.pause-menu-actions .menu-btn { animation: menuButtonEnter 280ms both; }
+.pause-menu-actions .menu-btn:nth-child(2) { animation-delay: 45ms; }
+.pause-menu-actions .menu-btn:nth-child(3) { animation-delay: 90ms; }
+.pause-menu-actions .menu-btn:nth-child(4) { animation-delay: 135ms; }
+
+@keyframes menuButtonEnter {
+  from { opacity: 0; transform: translateY(0.55rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.menu-btn-primary { border-color: var(--color-neon-cyan); color: var(--color-neon-cyan); }
+.menu-btn-danger { border-color: rgba(255, 41, 101, 0.65); color: #ff8ca8; }
+.setting-row { display: flex; justify-content: space-between; margin: 1rem 0 0.5rem; }
+
+.settings-grid {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.8rem 0;
+  text-align: left;
+}
+
+.audio-settings {
+  display: grid;
+  gap: 0.3rem;
+  text-align: left;
+}
+
+.audio-settings label,
+.setting-group label,
+.setting-group-title {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.audio-settings output,
+.setting-group output { color: var(--color-neon-cyan); }
+.audio-settings input,
+.setting-group input,
+.setting-group select { width: 100%; accent-color: var(--color-neon-cyan); }
+
+.setting-group {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(0, 229, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(0, 229, 255, 0.04);
+}
+
+.setting-group-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
+
+.setting-group select,
+.setting-group input[type="text"] {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-text);
+}
+
+.remap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.remap-grid label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
+
+.setting-hint {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+
+body[data-theme="aurora"] {
+  --color-bg: #050b1b;
+  --color-bg-deep: #02060f;
+  --color-bg-panel: #081325;
+  --color-neon-cyan: #66e3ff;
+  --color-neon-pink: #ff6fb7;
+}
+
+body[data-theme="midnight"] {
+  --color-bg: #02030b;
+  --color-bg-deep: #010208;
+  --color-bg-panel: #060813;
+  --color-neon-cyan: #7b89ff;
+  --color-neon-pink: #ff8f6e;
+}
+
+.game-over-menu { border-color: rgba(255, 41, 101, 0.72); }
+
+.game-over-title {
+  color: var(--color-neon-pink);
+  text-shadow: var(--glow-pink);
+  animation: gameOverPulse 900ms ease-in-out infinite alternate;
+}
+
+.game-over-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.game-over-stats div {
+  padding: 0.55rem;
+  border: 1px solid rgba(255, 41, 101, 0.25);
+  border-radius: 5px;
+  background: rgba(255, 41, 101, 0.06);
+}
+
+.game-over-stats span {
+  display: block;
+  color: var(--color-text-dim);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.game-over-stats strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--color-neon-yellow);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  text-shadow: 0 0 10px rgba(255, 229, 0, 0.45);
+}
+
+@keyframes gameOverPulse {
+  from { filter: brightness(0.85); transform: scale(0.98); }
+  to { filter: brightness(1.35); transform: scale(1.02); }
+}
+
+@keyframes pauseMenuEnter {
+  from { opacity: 0; transform: translateY(0.65rem) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- Five-piece next queue ---------- */
+.next-queue {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+  overflow: hidden;
+}
+
+.game-stage::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 229, 255, 0.11), transparent 58%);
+  mix-blend-mode: screen;
+  animation: stageGlowBreathe 2.8s ease-in-out infinite;
+}
+
+@keyframes stageGlowBreathe {
+  0%, 100% { opacity: 0.35; transform: scale(0.92); }
+  50% { opacity: 0.8; transform: scale(1.08); }
+}
+
+.next-queue-item {
+  height: 2.35rem;
+  padding: 0.12rem 0.25rem;
+  border: 1px solid rgba(0, 229, 255, 0.08);
+  border-radius: 4px;
+  background: rgba(4, 0, 12, 0.7);
+}
+
+.next-queue-item canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* A new spawn advances the queue: all visible slots sweep upward, then
+   settle into their freshly rendered positions. */
+.next-queue.is-shifting .next-queue-item {
+  animation: nextQueueAdvance 220ms cubic-bezier(0.22, 0.85, 0.35, 1);
+}
+
+.next-queue.is-shifting .next-queue-item:nth-child(2) { animation-delay: 18ms; }
+.next-queue.is-shifting .next-queue-item:nth-child(3) { animation-delay: 36ms; }
+.next-queue.is-shifting .next-queue-item:nth-child(4) { animation-delay: 54ms; }
+.next-queue.is-shifting .next-queue-item:nth-child(5) { animation-delay: 72ms; }
+
+@keyframes nextQueueAdvance {
+  0% { opacity: 0.2; transform: translateY(0.85rem); }
+  65% { opacity: 1; transform: translateY(-0.14rem); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Lines (styled as progress) ---------- */
+.panel-lines .panel-value {
+  color: var(--color-neon-green);
+  text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
+}
+
+/* ---------- Level ---------- */
+.panel-level .panel-value {
+  color: var(--color-neon-purple);
+  text-shadow: var(--glow-purple);
+}
+
+/* ---------- Combo (fires up while a streak builds) ---------- */
+.panel-combo .panel-value {
+  color: var(--color-text-dim);
+  font-size: 1.3rem;
+  transition: color 0.15s, text-shadow 0.15s;
+}
+
+.panel-combo .panel-value.is-active {
+  color: var(--color-neon-orange);
+  text-shadow: 0 0 12px rgba(255, 159, 28, 0.6);
+  animation: comboBump 0.25s ease-out;
+}
+
+@keyframes comboBump {
+  0% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   9. Footer
+   -------------------------------------------------------------------------- */
+.app-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 1.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  gap: 0.5rem;
+}
+
+#fps-counter {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* --------------------------------------------------------------------------
+   10. Responsive — Tablet / Mobile
+   -------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  #app {
+    gap: 0.5rem;
+    padding: 0.4rem;
+  }
+
+  .game-arena {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.35rem;
+    overflow-y: visible;
+  }
+
+  .panel {
+    flex: 1 1 calc(33.33% - 0.35rem);
+    min-width: 0;
+    padding: 0.4rem;
+  }
+
+  .panel-score {
+    flex: 1 1 100%;
+  }
+
+  .panel-score .panel-value {
+    font-size: 1.2rem;
+  }
+
+  .panel-title {
+    font-size: 0.5rem;
+    margin-bottom: 0.2rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .panel-value {
+    font-size: 0.9rem;
+  }
+
+  .piece-preview {
+    max-height: 60px;
+  }
+
+  .next-queue-item {
+    height: 2rem;
+  }
+
+  .app-title {
+    font-size: clamp(0.85rem, 3vh, 1.2rem);
+    letter-spacing: 0.20em;
+  }
+
+  .btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .panel {
+    flex: 1 1 calc(50% - 0.35rem);
+  }
+
+  .panel-score {
+    flex: 1 1 100%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   11. Reduced Motion
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .app-title {
+    animation: none;
+  }
+
+  .next-queue.is-shifting .next-queue-item {
+    animation: none;
+  }
+
+  .pause-menu, .game-over-title, .pause-overlay, .game-stage::after,
+  .pause-menu-actions .menu-btn { animation: none; }
+}
+
+/* Toggleable from the pause settings menu. */
+body.reduce-effects .next-queue.is-shifting .next-queue-item,
+body.reduce-effects .pause-menu,
+body.reduce-effects .game-over-title,
+body.reduce-effects .pause-overlay,
+body.reduce-effects .game-stage::after,
+body.reduce-effects .pause-menu-actions .menu-btn {
+  animation: none;
+}
+
+</style>
+</head>
+<body>
+  <div id="app">
+    <!-- ======================= Header / Title Bar ======================= -->
+    <header class="app-header">
+      <h1 class="app-title" aria-label="Neon Tetris">
+        NEON<span class="app-title-accent">TETRIS</span>
+      </h1>
+      <div class="header-controls">
+        <button
+          class="btn"
+          id="btn-pause"
+          type="button"
+          aria-label="Pause game"
+          aria-pressed="false"
+        >
+          <span class="btn-icon" aria-hidden="true">⏸</span>
+          <span class="btn-label">Pause</span>
+        </button>
+        <button
+          class="btn"
+          id="btn-settings"
+          type="button"
+          aria-label="Settings"
+        >
+          <span class="btn-icon" aria-hidden="true">⚙</span>
+          Settings
+        </button>
+      </div>
+    </header>
+
+    <!-- ======================= Game Arena ======================= -->
+    <div class="game-arena">
+      <!-- Playfield column -->
+      <section class="playfield-column">
+        <div class="game-stage" id="game-stage" aria-label="Tetris playfield">
+          <canvas id="game-canvas" aria-label="Game canvas">
+            <p class="no-canvas">
+              Your browser does not support the HTML5 canvas element.
+            </p>
+          </canvas>
+        </div>
+      </section>
+
+      <!-- Right sidebar -->
+      <aside class="sidebar" aria-label="Game information panels">
+        <!-- Hold Piece -->
+        <section class="panel panel-hold" aria-labelledby="panel-hold-title">
+          <h2 class="panel-title" id="panel-hold-title">Hold</h2>
+          <div class="piece-preview">
+            <canvas id="preview-hold" class="preview-canvas" aria-label="Held piece preview"></canvas>
+          </div>
+        </section>
+
+        <!-- Next Piece -->
+        <section class="panel panel-next" aria-labelledby="panel-next-title">
+          <h2 class="panel-title" id="panel-next-title">Next 5</h2>
+          <div id="preview-next" class="next-queue" aria-label="Next five pieces">
+            <div class="next-queue-item"><canvas data-preview-slot="0" aria-label="Next piece 1"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="1" aria-label="Next piece 2"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="2" aria-label="Next piece 3"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="3" aria-label="Next piece 4"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="4" aria-label="Next piece 5"></canvas></div>
+          </div>
+        </section>
+
+        <!-- Score -->
+        <section class="panel panel-score" aria-labelledby="panel-score-title">
+          <h2 class="panel-title" id="panel-score-title">Score</h2>
+          <div class="panel-value" id="hud-score">000000</div>
+        </section>
+
+        <!-- High Score -->
+        <section class="panel panel-high-score" aria-labelledby="panel-high-title">
+          <h2 class="panel-title" id="panel-high-title">High Score</h2>
+          <div class="panel-value" id="hud-high-score">000000</div>
+        </section>
+
+        <!-- Level -->
+        <section class="panel panel-level" aria-labelledby="panel-level-title">
+          <h2 class="panel-title" id="panel-level-title">Level</h2>
+          <div class="panel-value" id="hud-level">01</div>
+        </section>
+
+        <!-- Combo -->
+        <section class="panel panel-combo" aria-labelledby="panel-combo-title">
+          <h2 class="panel-title" id="panel-combo-title">Combo</h2>
+          <div class="panel-value" id="hud-combo">—</div>
+        </section>
+
+        <!-- Lines -->
+        <section class="panel panel-lines" aria-labelledby="panel-lines-title">
+          <h2 class="panel-title" id="panel-lines-title">Lines</h2>
+          <div class="panel-value" id="hud-lines">000</div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- Pause / menu overlay. It sits above the frozen game with a blurred backdrop. -->
+    <div id="pause-overlay" class="pause-overlay" hidden aria-hidden="true">
+      <section class="pause-menu" id="pause-menu" role="dialog" aria-modal="true" aria-labelledby="pause-menu-title">
+        <div id="pause-actions">
+          <p class="pause-kicker">Game paused</p>
+          <h2 id="pause-menu-title">Pause Menu</h2>
+          <p class="pause-shortcut">Press <kbd>Esc</kbd> or <kbd>P</kbd> to resume</p>
+          <div class="pause-menu-actions">
+            <button class="menu-btn menu-btn-primary" id="pause-resume" type="button">Resume</button>
+            <button class="menu-btn" id="pause-restart" type="button">Restart</button>
+            <button class="menu-btn" id="pause-settings" type="button">Settings</button>
+            <button class="menu-btn menu-btn-danger" id="pause-quit" type="button">Quit to Menu</button>
+          </div>
+        </div>
+        <div id="settings-actions" hidden>
+          <p class="pause-kicker">Pause menu</p>
+          <h2>Settings</h2>
+          <button class="menu-btn setting-row" id="setting-motion" type="button" aria-pressed="true">
+            <span>Queue animations</span><span id="setting-motion-value">On</span>
+          </button>
+          <div class="settings-grid" aria-label="Settings controls">
+            <div class="audio-settings" aria-label="Audio controls">
+              <label for="setting-master-volume">Master <output id="setting-master-volume-value">65%</output></label>
+              <input id="setting-master-volume" type="range" min="0" max="100" step="1" value="65" />
+              <label for="setting-music-volume">Music <output id="setting-music-volume-value">28%</output></label>
+              <input id="setting-music-volume" type="range" min="0" max="100" step="1" value="28" />
+              <label for="setting-effects-volume">Effects <output id="setting-effects-volume-value">72%</output></label>
+              <input id="setting-effects-volume" type="range" min="0" max="100" step="1" value="72" />
+            </div>
+            <div class="setting-group">
+              <label for="setting-graphics-quality">Graphics quality</label>
+              <select id="setting-graphics-quality">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="setting-theme">Theme</label>
+              <select id="setting-theme">
+                <option value="neon">Neon</option>
+                <option value="aurora">Aurora</option>
+                <option value="midnight">Midnight</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="setting-touch-sensitivity">Touch sensitivity <output id="setting-touch-sensitivity-value">50%</output></label>
+              <input id="setting-touch-sensitivity" type="range" min="0" max="100" step="1" value="50" />
+            </div>
+            <div class="setting-group remap-group">
+              <span class="setting-group-title">Keyboard remapping</span>
+              <div class="remap-grid">
+                <label>Move Left<input type="text" data-remap-action="moveLeft" value="ArrowLeft" readonly /></label>
+                <label>Move Right<input type="text" data-remap-action="moveRight" value="ArrowRight" readonly /></label>
+                <label>Soft Drop<input type="text" data-remap-action="softDrop" value="ArrowDown" readonly /></label>
+                <label>Hard Drop<input type="text" data-remap-action="hardDrop" value="Space" readonly /></label>
+                <label>Rotate CW<input type="text" data-remap-action="rotateCW" value="ArrowUp" readonly /></label>
+                <label>Rotate CCW<input type="text" data-remap-action="rotateCCW" value="KeyZ" readonly /></label>
+                <label>Hold<input type="text" data-remap-action="hold" value="KeyC" readonly /></label>
+                <label>Pause<input type="text" data-remap-action="pause" value="Escape" readonly /></label>
+              </div>
+              <p class="setting-hint">Press any key to remap an action.</p>
+            </div>
+          </div>
+          <p class="pause-shortcut">Pause shortcut: <kbd>Esc</kbd> or <kbd>P</kbd></p>
+          <button class="menu-btn" id="settings-back" type="button">Back</button>
+        </div>
+      </section>
+
+      <section class="pause-menu" id="main-menu" role="dialog" aria-modal="true" aria-labelledby="main-menu-title" hidden>
+        <p class="pause-kicker">Neon Tetris</p>
+        <h2 id="main-menu-title">Main Menu</h2>
+        <p class="pause-shortcut">Ready for a new run?</p>
+        <div class="pause-menu-actions">
+          <button class="menu-btn menu-btn-primary" id="menu-start" type="button">Start Game</button>
+        </div>
+      </section>
+
+      <section class="pause-menu game-over-menu" id="game-over-menu" role="dialog" aria-modal="true" aria-labelledby="game-over-title" hidden>
+        <p class="pause-kicker">Run complete</p>
+        <h2 id="game-over-title" class="game-over-title">Game Over</h2>
+        <div class="game-over-stats" aria-live="polite">
+          <div><span>Score</span><strong id="game-over-score">0</strong></div>
+          <div><span>High Score</span><strong id="game-over-high-score">0</strong></div>
+        </div>
+        <div class="pause-menu-actions">
+          <button class="menu-btn menu-btn-primary" id="game-over-restart" type="button">Restart</button>
+          <button class="menu-btn" id="game-over-menu-button" type="button">Return to Menu</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ======================= Footer ======================= -->
+    <footer class="app-footer">
+      <span>NEON TETRIS v1.0</span>
+      <span id="fps-counter" aria-live="off">-- FPS</span>
+    </footer>
+  </div>
+
+  <!-- Application entry point (ES6 module). -->
+  <script type="module">
+
+// ============================== config.js ==============================
+/**
+ * config.js
+ *
+ * Central configuration for NEON TETRIS.
+ *
+ * All tunable constants for the game live in this single module so that
+ * gameplay logic, rendering and UI modules stay free of magic numbers.
+ * Every object is frozen to prevent accidental mutation at runtime.
+ *
+ * Current scope (Milestone 1 — Foundation): grid geometry, canvas/runtime
+ * constants and the neon palette. Gameplay tables (gravity curve, scoring,
+ * SRS wall-kick data) are introduced by their owning milestones.
+ */
+
+/** Playfield grid geometry (standard Tetris dimensions). */
+const GRID = Object.freeze({
+  /** Width of the playfield in cells. */
+  COLS: 10,
+  /** Height of the visible playfield in cells. */
+  ROWS: 20,
+  /**
+   * Rows above the visible playfield where pieces spawn.
+   * Keeping them out of view prevents an abrupt "drop-in" on spawn.
+   */
+  HIDDEN_ROWS: 2,
+});
+
+/** Canvas and runtime constants. */
+const CANVAS = Object.freeze({
+  /**
+   * Design-space width in CSS pixels. The responsive stage may render at
+   * any size; the renderer maps this design space onto the live stage.
+   */
+  DESIGN_WIDTH: 600,
+  /**
+   * Design-space height in CSS pixels (5:6 ratio matches a 10x20 grid
+   * plus UI gutters in later milestones).
+   */
+  DESIGN_HEIGHT: 720,
+  /** Target simulation frames per second (fixed-timestep loop). */
+  FPS: 60,
+  /**
+   * Ceiling for the device-pixel-ratio multiplier. Guards against
+   * extreme DPR values that would needlessly waste fill-rate.
+   */
+  MAX_DPR: 2,
+});
+
+/** Renderer constants — cell geometry, glow, and board layout. */
+const RENDER = Object.freeze({
+  /** Gap between cells as a fraction of cell size (0–0.25). */
+  CELL_GAP_FRACTION: 0.08,
+  /** Corner radius of each cell as a fraction of cell size. */
+  CELL_RADIUS_FRACTION: 0.12,
+  /** Glow blur radius in CSS pixels (applied as shadowBlur). */
+  GLOW_BLUR: 10,
+  /** Glow intensity multiplier for the additive "neon tube" pass. */
+  GLOW_ALPHA: 0.55,
+  /** Minimum stage height in CSS pixels. */
+  MIN_STAGE_HEIGHT: 300,
+  /** Background gradient stops. */
+  BG_GRADIENT_TOP: '#0B0022',
+  BG_GRADIENT_BOTTOM: '#04000C',
+  /** Central glow opacity. */
+  BG_GLOW_ALPHA: 0.10,
+});
+
+/**
+ * Ghost piece rendering configuration — translucent landing preview.
+ *
+ * The ghost is drawn as a semi-transparent overlay at the projected drop
+ * position. It is recomputed every render frame and can never collide,
+ * because it is derived by simulating the piece downward until the first
+ * collision with the board (locked cells + floor).
+ */
+const GHOST = Object.freeze({
+  /** Fill opacity of the translucent landing cells. */
+  FILL_ALPHA: 0.18,
+  /** Stroke opacity of the neon outline that defines the landing cells. */
+  STROKE_ALPHA: 0.6,
+});
+
+/**
+ * Preview queue configuration — the "Next" panel.
+ *
+ * The queue is fed directly from the 7-bag randomizer so it is always a
+ * truthful view of the upcoming pieces (guaranteed to contain every piece
+ * within each 7-piece bag).
+ */
+const PREVIEW = Object.freeze({
+  /** Number of upcoming pieces shown in the Next queue. */
+  COUNT: 5,
+});
+
+/** Web Audio mixer defaults (0 = silent, 1 = full scale). */
+const AUDIO = Object.freeze({
+  MASTER_VOLUME: 0.65,
+  MUSIC_VOLUME: 0.28,
+  EFFECTS_VOLUME: 0.72,
+  MUSIC_STEP_MS: 300,
+});
+
+/** Neon colour palette shared by all UI and rendering modules. */
+const PALETTE = Object.freeze({
+  /** Deep space background tones. */
+  BACKGROUND: '#070012',
+  BACKGROUND_DEEP: '#04000C',
+  /** Faint grid overlay drawn on the playfield backdrop. */
+  GRID_LINE: 'rgba(0, 229, 255, 0.06)',
+
+  /**
+   * Per-piece neon colours, keyed by standard Tetris piece letters.
+   * Shape definitions (js/core/shapes.js) reference these keys.
+   */
+  PIECES: Object.freeze({
+    I: '#00E5FF', // I — cyan
+    O: '#FFE500', // O — yellow
+    T: '#B026FF', // T — purple
+    S: '#00FF9D', // S — green
+    Z: '#FF2965', // Z — red / magenta
+    J: '#3D8BFF', // J — blue
+    L: '#FF9F1C', // L — orange
+  }),
+
+  /** Text colours. */
+  TEXT_PRIMARY: '#EAEAFF',
+  TEXT_DIM: 'rgba(234, 234, 255, 0.55)',
+});
+
+/**
+ * Gravity configuration — fall speed curve and soft-drop multiplier.
+ *
+ * The classic Tetris guideline formula is:
+ *   gravity(level) = 0.8 × (0.85^(level - 1))  seconds per cell
+ * We express this in milliseconds and cap it to keep the game playable.
+ */
+const GRAVITY = Object.freeze({
+  /** Base interval in milliseconds at level 1 (0.8 s per cell). */
+  BASE_MS: 800,
+  /**
+   * Multiplier applied to `BASE_MS` for each level above 1.
+   * Smaller = faster.  (0.85 is the guideline value.)
+   */
+  SPEED_GROWTH: 0.85,
+  /** Minimum interval in milliseconds (floor — never faster than this). */
+  MIN_MS: 30,
+  /** Soft-drop speed multiplier (held ↓/S). 2× base gravity. */
+  SOFT_DROP_MULTIPLIER: 2,
+});
+
+/**
+ * Level configuration — progression curve.
+ *
+ * Level advances every 10 lines cleared (standard guideline).
+ */
+const LEVEL = Object.freeze({
+  /** Lines required per level. */
+  LINES_PER_LEVEL: 10,
+  /** Starting level. */
+  START: 1,
+});
+
+/**
+ * Scoring configuration — modern Tetris Guideline system.
+ *
+ * Line-clear base scores are multiplied by the current level.  Combos
+ * and back-to-back Tetrises add further bonuses; soft and hard drops
+ * award points per cell.
+ */
+const SCORE = Object.freeze({
+  /** Base points per line clear, keyed by lines cleared in one move. */
+  LINE_CLEAR_BASE: Object.freeze({ 1: 100, 2: 300, 3: 500, 4: 800 }),
+  /** Points awarded per cell descended while soft-dropping. */
+  SOFT_DROP_PER_CELL: 1,
+  /** Points awarded per cell descended by a hard drop. */
+  HARD_DROP_PER_CELL: 2,
+  /**
+   * Combo bonus base — combo points are `COMBO_BASE × (streak − 1) × level`,
+   * so the first clear of a streak (streak 1) awards no bonus, the second
+   * (streak 2) awards 1×, and so on.
+   */
+  COMBO_BASE: 50,
+  /** Multiplier applied to consecutive Tetris clears (back-to-back). */
+  BACK_TO_BACK_MULTIPLIER: 1.5,
+  /** Lines cleared in one move that count as a Tetris (for back-to-back). */
+  TETRIS_LINES: 4,
+});
+
+/**
+ * Lock configuration — piece locking rules.
+ *
+ * Lock delay gives the player a short grace period after a piece lands to
+ * shift or rotate it into a better position before it locks onto the board.
+ * `MAX_RESETS` caps how many times the delay can be refreshed, preventing a
+ * piece from being "stalled" on a surface forever.
+ */
+const LOCK = Object.freeze({
+  /** Lock delay in milliseconds once a piece has landed. */
+  DELAY_MS: 500,
+  /**
+   * Maximum number of times the lock delay may be refreshed by successful
+   * ground moves/rotations (guideline: 15).
+   */
+  MAX_RESETS: 15,
+});
+
+/**
+ * Line-clear configuration — animation and effects timing.
+ */
+const LINE_CLEAR = Object.freeze({
+  /** Total duration of the line-clear animation in milliseconds. */
+  ANIMATION_MS: 450,
+  /** How long the cleared rows flash before collapsing (0..ANIMATION_MS). */
+  FLASH_MS: 220,
+  /** Number of particles emitted per cleared cell. */
+  PARTICLES_PER_CELL: 4,
+});
+
+/**
+ * Input configuration — key bindings and repeat timing.
+ *
+ * DAS (Delayed Auto Shift): the delay before a held movement key begins
+ * repeating.  ARR (Auto Repeat Rate): the interval between repeats while
+ * the key is held.  Both are in milliseconds.
+ */
+const INPUT = Object.freeze({
+  /** DAS delay in milliseconds. */
+  DAS_MS: 170,
+  /** ARR repeat interval in milliseconds. */
+  ARR_MS: 40,
+  /**
+   * Actions that auto-repeat while held using DAS/ARR.
+   * `softDrop` is deliberately excluded — it accelerates gravity instead.
+   */
+  DAS_ACTIONS: Object.freeze(['moveLeft', 'moveRight']),
+  /**
+   * Keyboard bindings — maps a semantic action to an array of
+   * `KeyboardEvent.code` values.  Physical-key codes keep WASD/arrows
+   * working regardless of layout.
+   */
+  KEY_BINDINGS: Object.freeze({
+    moveLeft: Object.freeze(['ArrowLeft', 'KeyA']),
+    moveRight: Object.freeze(['ArrowRight', 'KeyD']),
+    softDrop: Object.freeze(['ArrowDown', 'KeyS']),
+    hardDrop: Object.freeze(['Space']),
+    rotateCW: Object.freeze(['ArrowUp', 'KeyX']),
+    rotateCCW: Object.freeze(['KeyZ']),
+    hold: Object.freeze(['KeyC', 'ShiftLeft', 'ShiftRight']),
+    pause: Object.freeze(['Escape', 'KeyP']),
+  }),
+});
+
+
+
+// ============================== shapes.js ==============================
+/**
+ * shapes.js
+ *
+ * Pure data: tetromino shape definitions, SRS wall-kick offsets, and
+ * spawn position helpers for all seven standard Tetris pieces.
+ *
+ * **Shape encoding:**
+ * Each piece stores its shape as arrays of `[row, col]` offsets relative
+ * to the piece's origin, for each of the 4 SRS rotation states.
+ * Rotation states are indexed 0, 1, 2, 3 (0 = spawn, 1 = R, 2 = 2, 3 = L).
+ *
+ * **Colour:**
+ * Each piece references a key in `PALETTE.PIECES` via `type`.
+ *
+ * All objects are frozen to prevent accidental mutation.
+ */
+
+
+// ---------------------------------------------------------------------------
+//  Rotation state indices
+// ---------------------------------------------------------------------------
+
+const ROTATION = Object.freeze({
+  SPAWN: 0,
+  RIGHT: 1,  // clockwise 90°
+  TWO: 2,    // 180°
+  LEFT: 3,   // counter-clockwise 90°
+});
+
+// ---------------------------------------------------------------------------
+//  Shape definitions
+// ---------------------------------------------------------------------------
+
+/**
+ * Each shape entry:
+ *   type      – Single-letter piece identifier (matches PALETTE.PIECES key).
+ *   colour    – The neon colour string from the palette.
+ *   cells     – Array of 4 rotation states, each an array of [row, col] offsets.
+ *   spawnCol  – Column where the piece spawns (centred on the 10-wide board).
+ *   spawnRow  – Row in the full matrix (including hidden rows) where the piece spawns.
+ */
+
+/** @type {{ [key: string]: { type: string, colour: string, cells: number[][][], spawnCol: number, spawnRow: number } }} */
+const SHAPES = Object.freeze({
+
+  // ---- I (cyan) ----
+  I: Object.freeze({
+    type: 'I',
+    colour: PALETTE.PIECES.I,
+    cells: Object.freeze([
+      // 0  (spawn) ─ flat horizontal
+      Object.freeze([[1, 0], [1, 1], [1, 2], [1, 3]]),
+      // 1  (R) ─ vertical
+      Object.freeze([[0, 2], [1, 2], [2, 2], [3, 2]]),
+      // 2  (2) ─ flat horizontal (inverted)
+      Object.freeze([[2, 0], [2, 1], [2, 2], [2, 3]]),
+      // 3  (L) ─ vertical (inverted)
+      Object.freeze([[0, 1], [1, 1], [2, 1], [3, 1]]),
+    ]),
+    spawnCol: Math.floor((GRID.COLS - 4) / 2), // 3
+    spawnRow: 0, // top of the visible area
+  }),
+
+  // ---- O (yellow) ----
+  O: Object.freeze({
+    type: 'O',
+    colour: PALETTE.PIECES.O,
+    cells: Object.freeze([
+      // All states identical (no rotation effect)
+      Object.freeze([[0, 0], [0, 1], [1, 0], [1, 1]]),
+      Object.freeze([[0, 0], [0, 1], [1, 0], [1, 1]]),
+      Object.freeze([[0, 0], [0, 1], [1, 0], [1, 1]]),
+      Object.freeze([[0, 0], [0, 1], [1, 0], [1, 1]]),
+    ]),
+    spawnCol: Math.floor((GRID.COLS - 2) / 2), // 4
+    spawnRow: 1,
+  }),
+
+  // ---- T (purple) ----
+  T: Object.freeze({
+    type: 'T',
+    colour: PALETTE.PIECES.T,
+    cells: Object.freeze([
+      // 0  (spawn)
+      Object.freeze([[0, 1], [1, 0], [1, 1], [1, 2]]),
+      // 1  (R)
+      Object.freeze([[0, 1], [1, 1], [1, 2], [2, 1]]),
+      // 2  (2)
+      Object.freeze([[1, 0], [1, 1], [1, 2], [2, 1]]),
+      // 3  (L)
+      Object.freeze([[0, 1], [1, 0], [1, 1], [2, 1]]),
+    ]),
+    spawnCol: Math.floor((GRID.COLS - 3) / 2), // 3
+    spawnRow: 0,
+  }),
+
+  // ---- S (green) ----
+  S: Object.freeze({
+    type: 'S',
+    colour: PALETTE.PIECES.S,
+    cells: Object.freeze([
+      // 0  (spawn)
+      Object.freeze([[0, 1], [0, 2], [1, 0], [1, 1]]),
+      // 1  (R)
+      Object.freeze([[0, 1], [1, 1], [1, 2], [2, 2]]),
+      // 2  (2)
+      Object.freeze([[1, 1], [1, 2], [2, 0], [2, 1]]),
+      // 3  (L)
+      Object.freeze([[0, 0], [1, 0], [1, 1], [2, 1]]),
+    ]),
+    spawnCol: Math.floor((GRID.COLS - 3) / 2), // 3
+    spawnRow: 0,
+  }),
+
+  // ---- Z (red / magenta) ----
+  Z: Object.freeze({
+    type: 'Z',
+    colour: PALETTE.PIECES.Z,
+    cells: Object.freeze([
+      // 0  (spawn)
+      Object.freeze([[0, 0], [0, 1], [1, 1], [1, 2]]),
+      // 1  (R)
+      Object.freeze([[0, 2], [1, 1], [1, 2], [2, 1]]),
+      // 2  (2)
+      Object.freeze([[1, 0], [1, 1], [2, 1], [2, 2]]),
+      // 3  (L)
+      Object.freeze([[0, 1], [1, 0], [1, 1], [2, 0]]),
+    ]),
+    spawnCol: Math.floor((GRID.COLS - 3) / 2), // 3
+    spawnRow: 0,
+  }),
+
+  // ---- J (blue) ----
+  J: Object.freeze({
+    type: 'J',
+    colour: PALETTE.PIECES.J,
+    cells: Object.freeze([
+      // 0  (spawn)
+      Object.freeze([[0, 0], [1, 0], [1, 1], [1, 2]]),
+      // 1  (R)
+      Object.freeze([[0, 1], [0, 2], [1, 1], [2, 1]]),
+      // 2  (2)
+      Object.freeze([[1, 0], [1, 1], [1, 2], [2, 2]]),
+      // 3  (L)
+      Object.freeze([[0, 1], [1, 1], [2, 0], [2, 1]]),
+    ]),
+    spawnCol: Math.floor((GRID.COLS - 3) / 2), // 3
+    spawnRow: 0,
+  }),
+
+  // ---- L (orange) ----
+  L: Object.freeze({
+    type: 'L',
+    colour: PALETTE.PIECES.L,
+    cells: Object.freeze([
+      // 0  (spawn)
+      Object.freeze([[0, 2], [1, 0], [1, 1], [1, 2]]),
+      // 1  (R)
+      Object.freeze([[0, 1], [1, 1], [2, 1], [2, 2]]),
+      // 2  (2)
+      Object.freeze([[1, 0], [1, 1], [1, 2], [2, 0]]),
+      // 3  (L)
+      Object.freeze([[0, 0], [0, 1], [1, 1], [2, 1]]),
+    ]),
+    spawnCol: Math.floor((GRID.COLS - 3) / 2), // 3
+    spawnRow: 0,
+  }),
+});
+
+// ---------------------------------------------------------------------------
+//  SRS wall-kick offset tables
+// ---------------------------------------------------------------------------
+
+/**
+ * SRS wall-kick data for J, L, S, T, Z pieces (3-wide).
+ * Each entry is an array of 5 offset tests [colOffset, rowOffset].
+ * Indexed by `fromState` (the current rotation state).
+ *
+ * Reference: https://tetris.wiki/Super_Rotation_System
+ */
+const WALL_KICKS_JLSTZ = Object.freeze({
+  [ROTATION.SPAWN]: Object.freeze([
+    Object.freeze([ 0,  0]),  // 1. basic rotation
+    Object.freeze([-1,  0]),  // 2. left wall kick
+    Object.freeze([-1, -1]),  // 3. left + up
+    Object.freeze([ 0,  2]),  // 4. down 2
+    Object.freeze([-1,  2]),  // 5. left + down 2
+  ]),
+  [ROTATION.RIGHT]: Object.freeze([
+    Object.freeze([ 0,  0]),
+    Object.freeze([ 1,  0]),
+    Object.freeze([ 1,  1]),
+    Object.freeze([ 0, -2]),
+    Object.freeze([ 1, -2]),
+  ]),
+  [ROTATION.TWO]: Object.freeze([
+    Object.freeze([ 0,  0]),
+    Object.freeze([ 1,  0]),
+    Object.freeze([ 1, -1]),
+    Object.freeze([ 0,  2]),
+    Object.freeze([ 1,  2]),
+  ]),
+  [ROTATION.LEFT]: Object.freeze([
+    Object.freeze([ 0,  0]),
+    Object.freeze([-1,  0]),
+    Object.freeze([-1,  1]),
+    Object.freeze([ 0, -2]),
+    Object.freeze([-1, -2]),
+  ]),
+});
+
+/**
+ * SRS wall-kick data for the I piece (4-wide).
+ */
+const WALL_KICKS_I = Object.freeze({
+  [ROTATION.SPAWN]: Object.freeze([
+    Object.freeze([ 0,  0]),
+    Object.freeze([-2,  0]),
+    Object.freeze([ 1,  0]),
+    Object.freeze([-2,  1]),
+    Object.freeze([ 1, -2]),
+  ]),
+  [ROTATION.RIGHT]: Object.freeze([
+    Object.freeze([ 0,  0]),
+    Object.freeze([-1,  0]),
+    Object.freeze([ 2,  0]),
+    Object.freeze([-1, -2]),
+    Object.freeze([ 2,  1]),
+  ]),
+  [ROTATION.TWO]: Object.freeze([
+    Object.freeze([ 0,  0]),
+    Object.freeze([ 2,  0]),
+    Object.freeze([-1,  0]),
+    Object.freeze([ 2, -1]),
+    Object.freeze([-1,  2]),
+  ]),
+  [ROTATION.LEFT]: Object.freeze([
+    Object.freeze([ 0,  0]),
+    Object.freeze([ 1,  0]),
+    Object.freeze([-2,  0]),
+    Object.freeze([ 1,  2]),
+    Object.freeze([-2, -1]),
+  ]),
+});
+
+// ---------------------------------------------------------------------------
+//  Utility
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the shape definition for a given piece type.
+ *
+ * @param {string} type  One of 'I', 'O', 'T', 'S', 'Z', 'J', 'L'.
+ * @returns {object} The frozen shape entry.
+ */
+function getShape(type) {
+  const shape = SHAPES[type];
+  if (!shape) {
+    throw new Error(`[shapes] Unknown piece type: "${type}".`);
+  }
+  return shape;
+}
+
+/**
+ * Returns the cell offsets for a given piece type and rotation state.
+ *
+ * @param {string} type       Piece type.
+ * @param {number} rotation   Rotation state index (0-3).
+ * @returns {number[][]} Array of [row, col] offsets.
+ */
+function getCells(type, rotation) {
+  const shape = getShape(type);
+  return shape.cells[rotation % shape.cells.length];
+}
+
+/**
+ * Returns the SRS wall-kick offsets for a piece type and rotation state.
+ *
+ * @param {string} type       Piece type ('I' or other).
+ * @param {number} rotation   Rotation state index (0-3).
+ * @returns {number[][]} Array of [col, row] offset tests.
+ */
+function getWallKicks(type, rotation) {
+  if (type === 'I') {
+    return WALL_KICKS_I[rotation % 4];
+  }
+  return WALL_KICKS_JLSTZ[rotation % 4];
+}
+
+/**
+ * Returns the spawn position for a piece type.
+ *
+ * @param {string} type
+ * @returns {{ row: number, col: number }}
+ */
+function getSpawnPosition(type) {
+  const shape = getShape(type);
+  return { row: shape.spawnRow, col: shape.spawnCol };
+}
+
+
+// ============================== Bag.js ==============================
+/**
+ * Bag.js
+ *
+ * Official 7-bag randomizer — the standard Tetris random piece generator.
+ *
+ * **How it works:**
+ *   - A "bag" contains exactly one of each of the 7 tetrominoes.
+ *   - The bag is shuffled using the Fisher-Yates algorithm.
+ *   - When a piece is requested, the next piece from the current bag is
+ *     returned.  If the bag is empty, a new bag is automatically shuffled
+ *     and appended to the queue.
+ *   - This guarantees that the player will never go more than 12 pieces
+ *     without seeing a specific piece (worst case: 6 from the end of one
+ *     bag + 6 from the start of the next).
+ *
+ * **Fairness properties:**
+ *   - Every bag contains all 7 pieces exactly once — no piece can appear
+ *     twice in a bag, and no piece can be skipped.
+ *   - The shuffle is uniform: every permutation of the 7 pieces is equally
+ *     likely.
+ *   - The sequence of pieces is statistically indistinguishable from a
+ *     shuffled deck model.
+ *
+ * **Unit-test examples** (in comments at the bottom of this file).
+ */
+
+// ---------------------------------------------------------------------------
+//  Constants
+// ---------------------------------------------------------------------------
+
+/** The seven standard piece types, in the order used by the official SRS. */
+const ALL_PIECES = Object.freeze(['I', 'O', 'T', 'S', 'Z', 'J', 'L']);
+
+// ---------------------------------------------------------------------------
+//  Fisher-Yates shuffle (in-place)
+// ---------------------------------------------------------------------------
+
+/**
+ * Performs an in-place Fisher-Yates (Knuth) shuffle on an array.
+ *
+ * This is a cryptographically *unsuitable* but statistically uniform shuffle
+ * for game use.  It runs in O(n) time and O(1) extra space.
+ *
+ * **Correctness guarantee:**
+ *   Every permutation of the input array is equally likely.  This is proven
+ *   by the fact that at each step i, a random element from the remaining
+ *   unshuffled portion [i, n-1] is selected with uniform probability 1/(n-i).
+ *
+ * @param {Array} arr  Array to shuffle in-place.
+ * @returns {Array} The same array, shuffled.
+ */
+function fisherYatesShuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    // Swap arr[i] and arr[j].
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
+// ---------------------------------------------------------------------------
+//  Bag class
+// ---------------------------------------------------------------------------
+
+class Bag {
+  /**
+   * Creates a new bag randomizer, pre-filled with one shuffled bag.
+   *
+   * @param {number} [previewCount=5]  Number of pieces visible in the
+   *                                   "next" queue preview.
+   */
+  constructor(previewCount = 5) {
+    /**
+     * Internal queue of piece types.  New bags are appended as needed.
+     * @type {string[]}
+     */
+    this._queue = [];
+
+    /** @type {number} Number of pieces to show in the next-queue preview. */
+    this._previewCount = previewCount;
+
+    // Fill the queue with at least one full bag so `next()` is immediately
+    // available.
+    this._refillIfNeeded();
+  }
+
+  // -----------------------------------------------------------------------
+  //  Core API
+  // -----------------------------------------------------------------------
+
+  /**
+   * Returns the next piece type from the bag and advances the queue.
+   * Automatically refills with a new shuffled bag when the queue runs out.
+   *
+   * @returns {string} One of 'I', 'O', 'T', 'S', 'Z', 'J', 'L'.
+   */
+  next() {
+    this._refillIfNeeded();
+    return this._queue.shift();
+  }
+
+  /**
+   * Returns the next piece type **without** consuming it.
+   *
+   * @returns {string} The next piece type.
+   */
+  peek() {
+    this._refillIfNeeded();
+    return this._queue[0];
+  }
+
+  /**
+   * Returns an array of the next `count` piece types, without consuming
+   * them.  Used to populate the "Next" queue in the HUD.
+   *
+   * @param {number} [count]  Number of pieces to preview (default: previewCount).
+   * @returns {string[]} Array of piece types.
+   */
+  preview(count) {
+    this._refillIfNeeded();
+    const n = count ?? this._previewCount;
+    // Ensure we have enough pieces in the queue.
+    while (this._queue.length < n) {
+      this._addBag();
+    }
+    return this._queue.slice(0, n);
+  }
+
+  /**
+   * Returns the total number of pieces remaining in the queue.
+   *
+   * @returns {number}
+   */
+  get remaining() {
+    return this._queue.length;
+  }
+
+  /**
+   * Resets the bag randomizer to its initial state (one fresh shuffled bag).
+   */
+  reset() {
+    this._queue = [];
+    this._refillIfNeeded();
+  }
+
+  // -----------------------------------------------------------------------
+  //  Internal helpers
+  // -----------------------------------------------------------------------
+
+  /**
+   * If the queue is empty, appends a new shuffled bag.
+   */
+  _refillIfNeeded() {
+    if (this._queue.length === 0) {
+      this._addBag();
+    }
+  }
+
+  /**
+   * Creates a new shuffled bag and appends it to the queue.
+   */
+  _addBag() {
+    // Copy the frozen ALL_PIECES array, then shuffle the copy.
+    const bag = fisherYatesShuffle([...ALL_PIECES]);
+    this._queue.push(...bag);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Unit-test examples (run with: `node js/core/Bag.js`)
+// ---------------------------------------------------------------------------
+
+/**
+ * If this module is executed directly (not imported), run a quick
+ * self-test that verifies the core properties of the 7-bag system.
+ */
+function runTests() {
+  // Minimal assertion helper for browser / Node compatibility.
+  const assert = {
+    ok(val, msg) { if (!val) throw new Error(`ASSERT FAIL: ${msg}`); },
+    equal(a, b, msg) { if (a !== b) throw new Error(`ASSERT FAIL: ${msg} — ${a} !== ${b}`); },
+    deepEqual(a, b, msg) {
+      if (JSON.stringify(a) !== JSON.stringify(b)) {
+        throw new Error(`ASSERT FAIL: ${msg} — ${JSON.stringify(a)} !== ${JSON.stringify(b)}`);
+      }
+    },
+  };
+
+  // ---- Test 1: Every bag contains all 7 pieces exactly once ----
+  const bag = new Bag();
+  const drawn = [];
+  for (let i = 0; i < 7; i++) drawn.push(bag.next());
+  drawn.sort();
+  assert.deepEqual(drawn, ['I', 'J', 'L', 'O', 'S', 'T', 'Z'],
+    'First bag must contain all 7 pieces');
+
+  // ---- Test 2: Multiple bags also contain all pieces ----
+  const drawn2 = [];
+  for (let i = 0; i < 14; i++) drawn2.push(bag.next());
+  drawn2.sort();
+  // Count occurrences of each piece.
+  const counts = {};
+  for (const p of drawn2) counts[p] = (counts[p] || 0) + 1;
+  for (const p of ALL_PIECES) {
+    assert.equal(counts[p], 2, `Each piece must appear exactly 2 times in 14 draws (got ${counts[p]} for ${p})`);
+  }
+
+  // ---- Test 3: preview() returns the correct number of pieces ----
+  const bag2 = new Bag();
+  const preview = bag2.preview(5);
+  assert.equal(preview.length, 5, 'preview(5) must return 5 pieces');
+  assert.equal(bag2.remaining, 7, 'preview must not consume pieces');
+
+  // ---- Test 4: peek() does not consume ----
+  const bag3 = new Bag();
+  const first = bag3.peek();
+  const second = bag3.peek();
+  assert.equal(first, second, 'peek() must be idempotent');
+
+  // ---- Test 5: reset() restores a full bag ----
+  const bag4 = new Bag();
+  bag4.next(); // consume 1
+  bag4.next(); // consume 2
+  bag4.reset();
+  assert.equal(bag4.remaining, 7, 'After reset, remaining must be 7');
+
+  // ---- Test 6: Fisher-Yates uniformity (statistical) ----
+  // Run 10000 shuffles and verify each piece appears in each position
+  // roughly equally (within 5% tolerance).
+  const positions = { I: [0,0,0,0,0,0,0], J: [0,0,0,0,0,0,0], L: [0,0,0,0,0,0,0],
+                       O: [0,0,0,0,0,0,0], S: [0,0,0,0,0,0,0], T: [0,0,0,0,0,0,0],
+                       Z: [0,0,0,0,0,0,0] };
+  const TRIALS = 10000;
+  for (let t = 0; t < TRIALS; t++) {
+    const shuffled = fisherYatesShuffle([...ALL_PIECES]);
+    for (let i = 0; i < 7; i++) {
+      positions[shuffled[i]][i]++;
+    }
+  }
+  const expected = TRIALS / 7; // ~1428.6
+  const tolerance = expected * 0.10; // 10% tolerance
+  for (const piece of ALL_PIECES) {
+    for (let i = 0; i < 7; i++) {
+      const count = positions[piece][i];
+      assert.ok(Math.abs(count - expected) < tolerance,
+        `Uniformity: ${piece} at position ${i} appeared ${count} times (expected ~${expected})`);
+    }
+  }
+
+  console.log('[Bag] ✓ All 7-bag tests passed.');
+}
+
+// Run tests when executed directly.
+if (typeof require !== 'undefined' && require.main === module) {
+  runTests();
+}
+
+// For ES module context, expose the test runner.
+function runBagTests() {
+  runTests();
+}
+
+
+// ============================== Board.js ==============================
+/**
+ * Board.js
+ *
+ * Tetris playfield model — the authoritative source of grid state.
+ *
+ * The board is a 2-D matrix of cells, each represented by a CSS colour
+ * string (for locked pieces) or `null` (empty).  The grid includes
+ * `HIDDEN_ROWS` rows above the visible playfield where pieces spawn.
+ *
+ * **Design rules:**
+ *   - Pure data: no DOM, no canvas, no rendering logic.
+ *   - The renderer calls `getSnapshot()` to obtain a 2-D array of the
+ *     *visible* rows (excluding hidden rows) for drawing.
+ *   - Row operations (clear, collapse, detect full) are pure functions
+ *     that return new state — the board is the only mutator.
+ */
+
+
+class Board {
+  /**
+   * Creates a new empty board.
+   * The matrix is `(ROWS + HIDDEN_ROWS) × COLS`, filled with `null`.
+   */
+  constructor() {
+    this._matrix = this._createEmptyMatrix();
+    this._snapshot = null;
+    this._snapshotDirty = true;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Internal helpers
+  // -----------------------------------------------------------------------
+
+  /**
+   * @returns {Array<Array<null>>} A fresh matrix of the correct size.
+   */
+  _createEmptyMatrix() {
+    const totalRows = GRID.ROWS + GRID.HIDDEN_ROWS;
+    return Array.from({ length: totalRows }, () => new Array(GRID.COLS).fill(null));
+  }
+
+  // -----------------------------------------------------------------------
+  //  Cell access
+  // -----------------------------------------------------------------------
+
+  /**
+   * Returns the colour at a grid position, or `null` if empty.
+   *
+   * @param {number} row  Row index (0 = top of hidden rows).
+   * @param {number} col  Column index (0 = left).
+   * @returns {string|null}
+   */
+  getCell(row, col) {
+    if (!this._isInBounds(row, col)) return null;
+    return this._matrix[row][col];
+  }
+
+  /**
+   * Sets a cell to a colour (or `null` to clear it).
+   *
+   * @param {number}      row    Row index.
+   * @param {number}      col    Column index.
+   * @param {string|null} color  CSS colour string or null.
+   */
+  setCell(row, col, color) {
+    if (!this._isInBounds(row, col)) return;
+    this._matrix[row][col] = color ?? null;
+    this._markDirty();
+  }
+
+  /**
+   * @param {number} row
+   * @param {number} col
+   * @returns {boolean} True if the cell position is within the matrix bounds.
+   */
+  _isInBounds(row, col) {
+    return row >= 0 && row < this._matrix.length
+        && col >= 0 && col < GRID.COLS;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Row queries
+  // -----------------------------------------------------------------------
+
+  /**
+   * Checks whether every cell in a row is occupied.
+   *
+   * @param {number} row  Row index (0 = top of hidden rows).
+   * @returns {boolean}
+   */
+  isRowFull(row) {
+    return this._matrix[row]?.every((cell) => cell !== null) ?? false;
+  }
+
+  /**
+   * Returns the indices of all full rows, from top to bottom.
+   *
+   * @returns {number[]} Sorted array of row indices that are full.
+   */
+  getFullRows() {
+    const full = [];
+    for (let r = 0; r < this._matrix.length; r++) {
+      if (this.isRowFull(r)) full.push(r);
+    }
+    return full;
+  }
+
+  /**
+   * Returns the full rows together with the colours of their cells.
+   * Used by the line-clear animation to flash and burst each cleared cell.
+   *
+   * @returns {Array<{row: number, cells: Array<{col: number, color: string}>}>}
+   */
+  getFullRowDetails() {
+    const details = [];
+    for (let r = 0; r < this._matrix.length; r++) {
+      if (!this.isRowFull(r)) continue;
+      const cells = [];
+      for (let c = 0; c < GRID.COLS; c++) {
+        const color = this._matrix[r][c];
+        if (color) cells.push({ col: c, color });
+      }
+      details.push({ row: r, cells });
+    }
+    return details;
+  }
+
+  /**
+   * Checks whether every cell in a row is empty.
+   *
+   * @param {number} row
+   * @returns {boolean}
+   */
+  isRowEmpty(row) {
+    return this._matrix[row]?.every((cell) => cell === null) ?? false;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Row mutations
+  // -----------------------------------------------------------------------
+
+  /**
+   * Clears a single row by setting all its cells to `null`.
+   *
+   * @param {number} row  Row index to clear.
+   */
+  clearRow(row) {
+    if (row >= 0 && row < this._matrix.length) {
+      this._matrix[row] = new Array(GRID.COLS).fill(null);
+      this._markDirty();
+    }
+  }
+
+  /**
+   * Removes a row and inserts a new empty row at the top, collapsing
+   * everything above it downward.
+   *
+   * @param {number} row  Row index to remove.
+   */
+  removeRow(row) {
+    if (row < 0 || row >= this._matrix.length) return;
+    this._matrix.splice(row, 1);
+    this._matrix.unshift(new Array(GRID.COLS).fill(null));
+    this._markDirty();
+  }
+
+/**
+   * Finds and removes all full rows, collapsing the board.
+   * Stores the count for access via `getLastClearedCount()`.
+   *
+   * @returns {number} The number of rows that were cleared.
+   */
+  clearFullRows() {
+    const fullRows = this.getFullRows();
+    this._lastClearedCount = fullRows.length;
+    if (fullRows.length === 0) return 0;
+
+    // Remove from bottom to top so indices stay valid.
+    for (let i = fullRows.length - 1; i >= 0; i--) {
+      this.removeRow(fullRows[i]);
+    }
+    return fullRows.length;
+  }
+
+  /**
+   * Returns the number of rows cleared in the most recent `clearFullRows()` call.
+   *
+   * @returns {number} 0–4.
+   */
+  getLastClearedCount() {
+    return this._lastClearedCount ?? 0;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Locking (collision checks live in the reusable Collision module)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Locks a set of coloured cells onto the board (e.g. when a piece lands).
+   * Overwrites any existing content at those positions.
+   *
+   * @param {Array<[number, number]>} cells   Array of [row, col] pairs.
+   * @param {string}                  color   CSS colour string for every cell.
+   */
+  lockCells(cells, color) {
+    for (const [r, c] of cells) {
+      if (r >= 0 && r < this._matrix.length && c >= 0 && c < GRID.COLS) {
+        this._matrix[r][c] = color;
+      }
+    }
+    this._markDirty();
+  }
+
+  // -----------------------------------------------------------------------
+  //  Snapshot (for the renderer)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Returns a copy of the **visible** portion of the board (excluding
+   * hidden rows) as a 2-D array of colour strings or `null`.
+   *
+   * The renderer calls this once per frame to draw the board.
+   *
+   * @returns {Array<Array<string|null>>}  `ROWS` × `COLS` array.
+   */
+  getSnapshot() {
+    if (!this._snapshotDirty) return this._snapshot;
+
+    const snapshot = [];
+    // Hidden rows are at the top of the matrix; skip them.
+    for (let r = GRID.HIDDEN_ROWS; r < this._matrix.length; r++) {
+      snapshot.push(this._matrix[r].slice());
+    }
+    this._snapshot = snapshot;
+    this._snapshotDirty = false;
+    return this._snapshot;
+  }
+
+  /**
+   * Returns a complete copy of the board matrix (including hidden rows).
+   * Useful for collision and full-state analysis.
+   *
+   * @returns {Array<Array<string|null>>}
+   */
+  getFullMatrix() {
+    return this._matrix;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Reset
+  // -----------------------------------------------------------------------
+
+  /** Resets the board to its initial empty state. */
+  reset() {
+    this._matrix = this._createEmptyMatrix();
+    this._markDirty();
+  }
+
+  _markDirty() {
+    this._snapshotDirty = true;
+  }
+}
+
+
+// ============================== Collision.js ==============================
+/**
+ * Collision.js
+ *
+ * A reusable collision detection module for Tetris.
+ *
+ * Pure logic — no DOM, no board reference, no game state.  Every function
+ * accepts a board matrix (or a function that queries it) and a set of cells,
+ * returning a result describing what the piece collided with.
+ *
+ * **Collision types detected:**
+ *   - **Walls** — left/right out-of-bounds.
+ *   - **Floor** — bottom out-of-bounds (below the visible + hidden rows).
+ *   - **Blocks** — overlap with locked cells on the board.
+ *   - **Rotation** — any of the above after applying a rotation + wall kick.
+ *   - **Invalid movement** — any movement (dx, dy) that would cause collision.
+ *
+ * **Usage (Game.js):**
+ *   const result = Collision.check(boardMatrix, cells);
+ *   if (result.collides) { // handle collision }
+ *   if (result.wallLeft) { // blocked on left }
+ *
+ *   const position = Collision.findDropPosition(boardMatrix, cells);
+ *   const canMove = Collision.canMove(boardMatrix, cells, dx, dy);
+ *   const canRotate = Collision.canRotateKick(boardMatrix, cells, colOff, rowOff);
+ */
+
+
+const COLLISION_TYPE = Object.freeze({
+  NONE: 'none',
+  WALL_LEFT: 'wallLeft',
+  WALL_RIGHT: 'wallRight',
+  FLOOR: 'floor',
+  BLOCK: 'block',
+});
+
+/**
+ * Collision result object.
+ *
+ * @typedef {Object} CollisionResult
+ * @property {boolean}  collides    True if any collision was detected.
+ * @property {string}   type        One of COLLISION_TYPE values (first detected).
+ * @property {boolean}  wallLeft    Hit the left wall.
+ * @property {boolean}  wallRight   Hit the right wall.
+ * @property {boolean}  floor       Hit the floor.
+ * @property {boolean}  block       Overlaps a locked cell.
+ * @property {number}   [row]       Row of the first colliding cell.
+ * @property {number}   [col]       Column of the first colliding cell.
+ */
+
+class Collision {
+  /**
+   * Checks a set of cells against the board matrix and returns a detailed
+   * collision result.
+   *
+   * @param {Array<Array<string|null>>} matrix  The full board matrix (including hidden rows).
+   * @param {Array<[number, number]>}   cells   Array of [row, col] pairs to test.
+   * @returns {CollisionResult}
+   */
+  static check(matrix, cells) {
+    const result = {
+      collides: false,
+      type: COLLISION_TYPE.NONE,
+      wallLeft: false,
+      wallRight: false,
+      floor: false,
+      block: false,
+      row: -1,
+      col: -1,
+    };
+
+    for (const [r, c] of cells) {
+      // Left wall
+      if (c < 0) {
+        result.collides = true;
+        result.wallLeft = true;
+        result.type = COLLISION_TYPE.WALL_LEFT;
+        result.row = r;
+        result.col = c;
+        return result;
+      }
+
+      // Right wall
+      if (c >= GRID.COLS) {
+        result.collides = true;
+        result.wallRight = true;
+        result.type = COLLISION_TYPE.WALL_RIGHT;
+        result.row = r;
+        result.col = c;
+        return result;
+      }
+
+      // Floor (below the matrix)
+      if (r >= matrix.length) {
+        result.collides = true;
+        result.floor = true;
+        result.type = COLLISION_TYPE.FLOOR;
+        result.row = r;
+        result.col = c;
+        return result;
+      }
+
+      // Above the top of the matrix (spawn zone) — allowed.
+      if (r < 0) continue;
+
+      // Locked cell (block)
+      if (matrix[r][c] !== null) {
+        result.collides = true;
+        result.block = true;
+        result.type = COLLISION_TYPE.BLOCK;
+        result.row = r;
+        result.col = c;
+        return result;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Convenience: returns true if the cells collide with anything.
+   * Equivalent to `Collision.check(matrix, cells).collides`.
+   *
+   * @param {Array<Array<string|null>>} matrix
+   * @param {Array<[number, number]>}   cells
+   * @returns {boolean}
+   */
+  static isCollision(matrix, cells) {
+    return Collision.check(matrix, cells).collides;
+  }
+
+  /**
+   * Checks whether a piece can move by (dx, dy) without colliding.
+   *
+   * @param {Array<Array<string|null>>} matrix
+   * @param {Array<[number, number]>}   cells    Current piece cells.
+   * @param {number}                    dx       Horizontal offset (-1, 0, 1).
+   * @param {number}                    dy       Vertical offset (-1, 0, 1).
+   * @returns {boolean} True if the move is valid.
+   */
+  static canMove(matrix, cells, dx, dy) {
+    const moved = cells.map(([r, c]) => [r + dy, c + dx]);
+    return !Collision.isCollision(matrix, moved);
+  }
+
+  /**
+   * Checks whether a rotation with wall-kick offsets is valid.
+   *
+   * @param {Array<Array<string|null>>} matrix
+   * @param {Array<[number, number]>}   newCells  Cells at the new rotation state.
+   * @param {number}                    colOffset  Wall-kick column offset.
+   * @param {number}                    rowOffset  Wall-kick row offset.
+   * @returns {boolean} True if the rotation + kick is valid.
+   */
+  static canRotateKick(matrix, newCells, colOffset, rowOffset) {
+    const kicked = newCells.map(([r, c]) => [r + rowOffset, c + colOffset]);
+    return !Collision.isCollision(matrix, kicked);
+  }
+
+  /**
+   * Finds the drop distance (ghost row) for a set of cells.
+   * Returns the number of rows the piece can descend as a rigid body
+   * before colliding with the floor or locked cells.
+   *
+   * @param {Array<Array<string|null>>} matrix
+   * @param {Array<[number, number]>}   cells  Current piece cells.
+   * @returns {number} The row offset the piece can drop (0 = already grounded).
+   */
+  static findDropPosition(matrix, cells) {
+    let dropDistance = 0;
+
+    while (true) {
+      const nextCells = cells.map(([r, c]) => [r + 1, c]);
+      if (Collision.isCollision(matrix, nextCells)) break;
+      dropDistance += 1;
+      cells = nextCells;
+    }
+
+    return dropDistance;
+  }
+
+  /**
+   * Returns the ghost cells at the projected drop position.
+   *
+   * @param {Array<Array<string|null>>} matrix
+   * @param {Array<[number, number]>}   cells  Current piece cells.
+   * @returns {Array<[number, number]>} Ghost cell coordinates.
+   */
+  static getGhostCells(matrix, cells) {
+    const dropDistance = Collision.findDropPosition(matrix, cells);
+    return cells.map(([r, c]) => [r + dropDistance, c]);
+  }
+}
+
+
+// ============================== Tetromino.js ==============================
+/**
+ * Tetromino.js
+ *
+ * Mutable piece instance.  Represents a single tetromino on the board:
+ * its type, colour, current rotation state, and grid position.
+ *
+ * **Design rules:**
+ *   - Owns no rendering logic — callers read `getCells()` for grid ops.
+ *   - Does not reference the Board — callers pass collision checks.
+ *   - Rotation is a pure state transition; the caller validates with
+ *     `Collision.isCollision()` before applying via `applyRotation()`.
+ */
+
+
+class Tetromino {
+  /**
+   * Creates a new tetromino instance at its spawn position.
+   *
+   * @param {string} type  One of 'I', 'O', 'T', 'S', 'Z', 'J', 'L'.
+   */
+  constructor(type) {
+    const shape = getShape(type);
+
+    /** @type {string} Single-letter piece identifier. */
+    this.type = type;
+
+    /** @type {string} CSS colour string from the palette. */
+    this.colour = shape.colour;
+
+    /** @type {number} Current rotation state index (0-3). */
+    this.rotation = 0;
+
+    /** @type {number} Grid row of the piece origin (top-left of bounding box). */
+    this.row = 0;
+    /** @type {number} Grid column of the piece origin. */
+    this.col = 0;
+
+    this._spawn();
+  }
+
+  // -----------------------------------------------------------------------
+  //  Position
+  // -----------------------------------------------------------------------
+
+  /**
+   * Resets the piece to its spawn position.
+   * Called automatically by the constructor.
+   */
+  _spawn() {
+    const pos = getSpawnPosition(this.type);
+    this.row = pos.row;
+    this.col = pos.col;
+    this.rotation = 0;
+  }
+
+  /**
+   * Returns the absolute grid coordinates of every occupied cell of this
+   * piece, given its current position and rotation.
+   *
+   * @returns {Array<[number, number]>} Array of [row, col] pairs.
+   */
+  getCells() {
+    const offsets = getCells(this.type, this.rotation);
+    return offsets.map(([r, c]) => [this.row + r, this.col + c]);
+  }
+
+  // -----------------------------------------------------------------------
+  //  Rotation
+  // -----------------------------------------------------------------------
+
+  /**
+   * Returns the next rotation state index (clockwise by default).
+   *
+   * @param {boolean} [counterClockwise=false]  Rotate left instead of right.
+   * @returns {number} The new rotation state index (does NOT mutate).
+   */
+  getNextRotation(counterClockwise = false) {
+    const shape = getShape(this.type);
+    const numStates = shape.cells.length;
+    if (counterClockwise) {
+      return (this.rotation + numStates - 1) % numStates;
+    }
+    return (this.rotation + 1) % numStates;
+  }
+
+  /**
+   * Applies a rotation state change to this instance.
+   * Caller must validate that the new state is valid (no collision) before
+   * calling this method.
+   *
+   * @param {number} newRotation  Rotation state index (0-3).
+   * @param {number} [colOffset=0]  Optional horizontal offset (for wall kicks).
+   * @param {number} [rowOffset=0]  Optional vertical offset (for wall kicks).
+   */
+  applyRotation(newRotation, colOffset = 0, rowOffset = 0) {
+    this.rotation = newRotation;
+    this.col += colOffset;
+    this.row += rowOffset;
+  }
+
+  /**
+   * Returns the wall-kick offset tests for rotating from the current state
+   * to the next state.
+   *
+   * @param {boolean} [counterClockwise=false]
+   * @returns {Array<[number, number]>} Array of [colOffset, rowOffset] tests.
+   */
+  getWallKicks(counterClockwise = false) {
+    const nextRotation = this.getNextRotation(counterClockwise);
+    const kicks = getWallKicks(this.type, this.rotation);
+
+    // In SRS, the kicks are defined for the transition from current → next.
+    // For counter-clockwise (L rotation), we need the reverse kicks.
+    if (counterClockwise) {
+      // Reverse the kick offsets: negate col and row.
+      return kicks.map(([c, r]) => [-c, -r]);
+    }
+
+    return kicks.map(([c, r]) => [c, r]);
+  }
+
+  // -----------------------------------------------------------------------
+  //  Ghost piece (projected drop position)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Computes the ghost piece position (where the piece would land if
+   * dropped straight down).
+   *
+   * @param {Function} isCollision  A function `(cells) => boolean` that
+   *                                checks if a set of cells collides.
+   * @returns {Array<[number, number]>} Ghost cell coordinates.
+   */
+  getGhostCells(isCollision) {
+    const cells = this.getCells();
+
+    // Drop the piece row by row until collision.
+    let ghostRow = this.row;
+    while (true) {
+      const nextCells = cells.map(([r, c]) => [r + 1, c]);
+      if (isCollision(nextCells)) break;
+      ghostRow++;
+      // Update the cell positions for the next iteration.
+      for (const cell of cells) cell[0]++;
+    }
+
+    // Return the cells at the ghost position.
+    return cells.map(([r, c]) => [r, c]);
+  }
+
+  // -----------------------------------------------------------------------
+  //  Clone
+  // -----------------------------------------------------------------------
+
+  /**
+   * Creates a deep copy of this tetromino.
+   *
+   * @returns {Tetromino}
+   */
+  clone() {
+    const copy = new Tetromino(this.type);
+    copy.rotation = this.rotation;
+    copy.row = this.row;
+    copy.col = this.col;
+    return copy;
+  }
+}
+
+
+// ============================== Gravity.js ==============================
+/**
+ * Gravity.js
+ *
+ * Delta-time-based gravity controller — the engine behind automatic piece
+ * falling.
+ *
+ * **Design goals:**
+ *   - *Automatic falling*: the piece descends one cell whenever the
+ *     gravity accumulator reaches the current fall interval.
+ *   - *Delta-time based*: the accumulator consumes real simulation time
+ *     (`dtMs`) provided by the fixed-timestep loop, so timing is smooth
+ *     and continuous — no reliance on frame counts.
+ *   - *Independent from FPS*: because the fixed-timestep loop always
+ *     delivers a constant `dtMs` per tick, gravity behaves identically at
+ *     60, 120 or 144 Hz.  The accumulator can also consume larger chunks
+ *     (e.g. after a tab switch) without drifting.
+ *   - *Level speed*: the fall interval is derived from the current level
+ *     via the guideline exponential curve.
+ *   - *Soft drop*: holding soft-drop multiplies the interval, dropping the
+ *     piece faster (2× by default).
+ *
+ * **Contract with the caller (Game.js):**
+ *   - The caller passes `canDescend()` (a predicate that answers "can the
+ *     piece move down one cell?") and `onStep()` (a callback invoked for
+ *     every cell the piece should descend).
+ *   - The caller decides when a piece has "landed" and what to do then —
+ *     this module deliberately does **not** lock pieces.
+ *
+ * This module is pure logic: no DOM, no board reference, no rendering.
+ */
+
+
+class Gravity {
+  /**
+   * @param {number} [startLevel=1]  Initial level used for the fall interval.
+   */
+  constructor(startLevel = 1) {
+    /** @type {number} Current fall interval in milliseconds. */
+    this._intervalMs = this._intervalForLevel(startLevel);
+
+    /** @type {number} Accumulated fall time in milliseconds. */
+    this._accumulator = 0;
+
+    /** @type {number} Current level (1-based). */
+    this._level = startLevel;
+
+    /** @type {boolean} Whether soft drop is currently active. */
+    this._softDropping = false;
+  }
+
+  // -------------------------------------------------------------------------
+  //  Speed curve
+  // -------------------------------------------------------------------------
+
+  /**
+   * Computes the fall interval (ms per cell) for a level using the
+   * guideline exponential formula, clamped to `GRAVITY.MIN_MS`.
+   *
+   *   interval(level) = BASE_MS × SPEED_GROWTH^(level - 1)
+   *
+   * @param {number} level  1-based level.
+   * @returns {number} Fall interval in milliseconds.
+   */
+  _intervalForLevel(level) {
+    const interval = GRAVITY.BASE_MS * (GRAVITY.SPEED_GROWTH ** (level - 1));
+    return Math.max(GRAVITY.MIN_MS, Math.round(interval));
+  }
+
+  // -------------------------------------------------------------------------
+  //  Public API
+  // -------------------------------------------------------------------------
+
+  /**
+   * Resets gravity to a given level with a cleared accumulator.
+   *
+   * @param {number} [level=1]  Level to reset to.
+   */
+  reset(level = 1) {
+    this._level = level;
+    this._intervalMs = this._intervalForLevel(level);
+    this._accumulator = 0;
+    this._softDropping = false;
+  }
+
+  /**
+   * Sets the current level, recalculating the fall interval.
+   * The accumulator is kept (timing stays continuous across level-ups).
+   *
+   * @param {number} level  1-based level.
+   */
+  setLevel(level) {
+    this._level = Math.max(1, level);
+    this._intervalMs = this._intervalForLevel(this._level);
+  }
+
+  /**
+   * Clears the accumulated fall time.  Call after a manual piece step
+   * (soft drop, hold, spawn) so the next gravity tick starts fresh.
+   */
+  resetAccumulator() {
+    this._accumulator = 0;
+  }
+
+  /** @returns {number} The current level (1-based). */
+  get level() {
+    return this._level;
+  }
+
+  /** @returns {number} The current fall interval in milliseconds. */
+  get intervalMs() {
+    return this._intervalMs;
+  }
+
+  /** @returns {boolean} Whether soft drop is currently active. */
+  get isSoftDropping() {
+    return this._softDropping;
+  }
+
+  /**
+   * Enables or disables soft drop, which multiplies the descent speed.
+   *
+   * @param {boolean} active  Whether soft drop is being held.
+   */
+  setSoftDrop(active) {
+    this._softDropping = active;
+    if (!active) {
+      // When soft drop ends, keep the accumulator (no jump).
+    }
+  }
+
+  /**
+   * Advances gravity by a delta-time chunk and fires `onStep` for every
+   * cell the piece should descend.
+   *
+   * The interval while soft-dropping is `intervalMs / SOFT_DROP_MULTIPLIER`,
+   * i.e. 2× the normal falling speed.
+   *
+   * @param {number}   dtMs        Elapsed simulation time in milliseconds.
+   * @param {Function} canDescend  Predicate `() => boolean` — may the piece
+   *                               move down one more cell?
+   * @param {Function} onStep      Callback invoked once per cell descended.
+   */
+  update(dtMs, canDescend, onStep) {
+    const interval = this._softDropping
+      ? this._intervalMs / GRAVITY.SOFT_DROP_MULTIPLIER
+      : this._intervalMs;
+
+    this._accumulator += dtMs;
+
+    // Consume as many whole intervals as the accumulator holds.
+    while (this._accumulator >= interval) {
+      if (!canDescend()) {
+        // Landed — stop consuming; the caller decides what happens next.
+        this._accumulator = 0;
+        return;
+      }
+
+      onStep();
+      this._accumulator -= interval;
+    }
+  }
+
+  /**
+   * The accumulated time fraction — used for visual interpolation (a
+   * smooth vertical offset between cells) in a later milestone.
+   *
+   * @returns {number} 0..1 — progress toward the next cell.
+   */
+  get progress() {
+    const interval = this._softDropping
+      ? this._intervalMs / GRAVITY.SOFT_DROP_MULTIPLIER
+      : this._intervalMs;
+    return Math.min(1, this._accumulator / interval);
+  }
+}
+
+
+// ============================== Level.js ==============================
+/**
+ * Level.js
+ *
+ * Level progression model — drives both the gravity speed curve and the
+ * scoring multipliers in later milestones.
+ *
+ * The guideline rules implemented here:
+ *   - The game starts at `LEVEL.START` (default 1).
+ *   - Every `LEVEL.LINES_PER_LEVEL` (default 10) lines cleared advances
+ *     the level by one.
+ *   - Level is 1-based and never decreases.
+ *
+ * Pure logic: no DOM, no rendering.  The Game orchestrator owns an
+ * instance and feeds it cleared-line counts.
+ */
+
+
+class Level {
+  /**
+   * @param {number} [start=LEVEL.START]  Starting level (1-based).
+   */
+  constructor(start = LEVEL.START) {
+    /** @type {number} 1-based current level. */
+    this._level = Math.max(1, Math.floor(start));
+
+    /** @type {number} Total lines cleared this game. */
+    this._totalLines = 0;
+
+    /** @type {number} Lines cleared at the *current* level. */
+    this._linesInLevel = 0;
+  }
+
+  // -------------------------------------------------------------------------
+  //  Public API
+  // -------------------------------------------------------------------------
+
+  /**
+   * Records lines cleared and advances the level as needed.
+   *
+   * @param {number} cleared  Number of lines cleared in one move (1-4).
+   * @returns {number} Number of levels gained (0 if no change).
+   */
+  addLines(cleared) {
+    if (cleared <= 0) return 0;
+
+    this._totalLines += cleared;
+    this._linesInLevel += cleared;
+
+    let gained = 0;
+    while (this._linesInLevel >= LEVEL.LINES_PER_LEVEL) {
+      this._linesInLevel -= LEVEL.LINES_PER_LEVEL;
+      this._level += 1;
+      gained += 1;
+    }
+    return gained;
+  }
+
+  /** @returns {number} Current 1-based level. */
+  get level() {
+    return this._level;
+  }
+
+  /** @returns {number} Total lines cleared this game. */
+  get totalLines() {
+    return this._totalLines;
+  }
+
+  /** @returns {number} Lines cleared at the current level. */
+  get linesInLevel() {
+    return this._linesInLevel;
+  }
+
+  /** Resets to the starting level with zero lines. */
+  reset() {
+    this._level = LEVEL.START;
+    this._totalLines = 0;
+    this._linesInLevel = 0;
+  }
+}
+
+
+// ============================== Score.js ==============================
+/**
+ * Score.js
+ *
+ * Modern guideline scoring system for NEON TETRIS.
+ *
+ * **Scoring rules implemented (Tetris Guideline style):**
+ *
+ *   - **Line clears** (Single / Double / Triple / Tetris):
+ *     base points × current level.
+ *       Single = 100, Double = 300, Triple = 500, Tetris = 800.
+ *   - **Combo bonus**: every consecutive clear (without a non-clearing
+ *     drop in between) increases a combo counter.  Points are awarded as
+ *     `COMBO_BASE × (streak − 1) × level`, so the first clear of a streak
+ *     carries no bonus and each subsequent consecutive clear adds one
+ *     more unit of `COMBO_BASE × level`.
+ *   - **Back-to-back**: consecutive Tetris clears multiply their base by
+ *     `BACK_TO_BACK_MULTIPLIER` (×1.5).  A non-Tetris clear resets the
+ *     streak.
+ *   - **Soft drop**: `SOFT_DROP_PER_CELL` points per cell manually
+ *     descended while holding the soft-drop key.
+ *   - **Hard drop**: `HARD_DROP_PER_CELL` points per cell dropped by a
+ *     hard drop.
+ *
+ * **Design rules:**
+ *   - Pure logic: no DOM, no board reference, no rendering.
+ *   - The `level` used for multipliers is supplied by the caller (the
+ *     `Level` module is the single authority on level progression, so
+ *     score and level never drift out of sync).
+ *   - Combo and back-to-back streaks are owned here — they are purely a
+ *     scoring concern.
+ */
+
+
+class Score {
+  /** Creates a fresh score tracker at zero. */
+  constructor() {
+    /** @type {number} Cumulative score. */
+    this._score = 0;
+
+    /** @type {number} Current combo counter (0 = no active combo). */
+    this._combo = 0;
+
+    /** @type {boolean} Whether the previous clear was a Tetris. */
+    this._backToBack = false;
+  }
+
+  // -------------------------------------------------------------------------
+  //  Public API
+  // -------------------------------------------------------------------------
+
+  /** Resets score, combo and back-to-back streaks. */
+  reset() {
+    this._score = 0;
+    this._combo = 0;
+    this._backToBack = false;
+  }
+
+  /**
+   * Awards points for clearing one or more lines in a single drop.
+   *
+   * A non-clearing drop should be reported as `addLineClear(0, level)` so
+   * the combo streak resets (the caller can simply skip the call — the
+   * combo is reset lazily on the next clear — but explicit reporting is
+   * clearer).
+   *
+   * @param {number} cleared  Lines cleared in this drop (0–4).
+   * @param {number} level    Current 1-based level (before any level-up).
+   * @returns {{gained: number, combo: number, backToBack: boolean}}
+   *   Points awarded plus the streak context for HUD/effects.
+   */
+  addLineClear(cleared, level) {
+    if (cleared <= 0) {
+      this._combo = 0;
+      return { gained: 0, combo: 0, backToBack: false };
+    }
+
+    // Combo: the first clear of a streak carries no bonus; each
+    // subsequent consecutive clear increments the counter by one.
+    // `priorCombo` is the streak length BEFORE this clear; it sizes the
+    // bonus so streak 2 → 1× bonus, streak 3 → 2× bonus, and so on.
+    const priorCombo = this._combo;
+    this._combo += 1;
+
+    // Base points for the clear type, scaled by the current level.
+    const base = (SCORE.LINE_CLEAR_BASE[cleared] ?? 0) * level;
+
+    // Back-to-back: consecutive Tetris clears are worth ×1.5.
+    const isTetris = cleared >= SCORE.TETRIS_LINES;
+    let backToBack = false;
+    let multiplier = 1;
+    if (isTetris && this._backToBack) {
+      backToBack = true;
+      multiplier = SCORE.BACK_TO_BACK_MULTIPLIER;
+    }
+    this._backToBack = isTetris;
+
+    // Combo bonus points.
+    const comboPoints = priorCombo > 0 ? SCORE.COMBO_BASE * priorCombo * level : 0;
+
+    const gained = Math.round(base * multiplier) + comboPoints;
+    this._score += gained;
+
+    return { gained, combo: this._combo, backToBack };
+  }
+
+  /**
+   * Awards points for soft-dropping a piece by a number of cells.
+   *
+   * @param {number} cells  Number of cells descended via soft drop.
+   * @returns {number} Points awarded.
+   */
+  addSoftDrop(cells) {
+    const gained = cells * SCORE.SOFT_DROP_PER_CELL;
+    this._score += gained;
+    return gained;
+  }
+
+  /**
+   * Awards points for hard-dropping a piece by a number of cells.
+   *
+   * @param {number} cells  Number of cells descended via hard drop.
+   * @returns {number} Points awarded.
+   */
+  addHardDrop(cells) {
+    const gained = cells * SCORE.HARD_DROP_PER_CELL;
+    this._score += gained;
+    return gained;
+  }
+
+  // -------------------------------------------------------------------------
+  //  Query API
+  // -------------------------------------------------------------------------
+
+  /** @returns {number} Current cumulative score. */
+  get score() {
+    return this._score;
+  }
+
+  /** @returns {number} Current combo counter (0 = none). */
+  get combo() {
+    return this._combo;
+  }
+
+  /** @returns {boolean} Whether the previous clear was a Tetris. */
+  get backToBack() {
+    return this._backToBack;
+  }
+}
+
+
+
+// ============================== LockDelay.js ==============================
+/**
+ * LockDelay.js
+ *
+ * A small, pure-logic timer that governs when a grounded piece locks onto
+ * the board.
+ *
+ * **Why lock delay?**
+ * In guideline Tetris, a piece does not lock the instant it lands.  The
+ * player gets a short window (the "lock delay") to keep shifting and
+ * rotating the piece — for example, to slide it into a narrow gap — before
+ * it commits to the stack.  This dramatically improves the feel of the game.
+ *
+ * **Rules implemented here:**
+ *   - `start()` arms the timer when the piece becomes grounded.
+ *   - `tick(dtMs)` counts down while the piece stays grounded.
+ *   - `reset()` refreshes the full delay after a *successful* grounded
+ *     move/rotate, up to `LOCK.MAX_RESETS` times.  This prevents a player
+ *     from stalling a piece on a surface indefinitely.
+ *   - `disarm()` cancels the timer entirely (e.g. the piece lifted off the
+ *     ground, was hard-dropped, or the game state changed).
+ *   - `isExpired` reports when the delay has fully elapsed — the owner
+ *     should lock the piece.
+ *
+ * This module owns no game state — it only measures time.
+ */
+
+
+class LockDelay {
+  constructor() {
+    /** @type {number} Remaining delay in milliseconds. */
+    this._remaining = 0;
+
+    /** @type {number} How many times the delay has been refreshed. */
+    this._resets = 0;
+
+    /** @type {boolean} Whether the timer is armed. */
+    this._active = false;
+  }
+
+  /**
+   * Arms the timer with the full configured delay.
+   * Calling while already active restarts the delay and resets the counter.
+   */
+  start() {
+    this._remaining = LOCK.DELAY_MS;
+    this._resets = 0;
+    this._active = true;
+  }
+
+  /**
+   * Refreshes the full delay after a successful grounded shift/rotation.
+   * No-op if the delay is not armed or the reset budget is exhausted.
+   */
+  reset() {
+    if (!this._active) return;
+    if (this._resets >= LOCK.MAX_RESETS) return;
+    this._resets += 1;
+    this._remaining = LOCK.DELAY_MS;
+  }
+
+  /**
+   * Advances the timer.  When the remaining time reaches zero the timer
+   * stays *active* (with `remaining = 0`) so that the owner can read
+   * `isExpired` and perform the lock.  The owner is expected to call
+   * `disarm()` once the lock has been performed; leaving the timer armed at
+   * zero also lets a last-moment grounded move/rotation still `reset()` it.
+   *
+   * @param {number} dtMs  Elapsed simulation time in milliseconds.
+   */
+  tick(dtMs) {
+    if (!this._active) return;
+    this._remaining -= dtMs;
+    if (this._remaining <= 0) {
+      // Clamp at zero but keep `_active` true so `isExpired` can be read.
+      this._remaining = 0;
+    }
+  }
+
+  /** Cancels the timer and clears all state. */
+  disarm() {
+    this._active = false;
+    this._remaining = 0;
+    this._resets = 0;
+  }
+
+  /** @returns {boolean} Whether the timer is currently armed. */
+  get isActive() {
+    return this._active;
+  }
+
+  /** @returns {boolean} True when an armed timer has fully elapsed. */
+  get isExpired() {
+    return this._active && this._remaining <= 0;
+  }
+
+  /** @returns {boolean} Whether the delay can still be refreshed. */
+  get canReset() {
+    return this._resets < LOCK.MAX_RESETS;
+  }
+
+  /** @returns {number} Remaining delay in milliseconds (0 when inactive). */
+  get remaining() {
+    return this._remaining;
+  }
+
+  /** @returns {number} 0..1 — fraction of the current delay remaining. */
+  get progress() {
+    return this._active ? this._remaining / LOCK.DELAY_MS : 0;
+  }
+}
+
+
+
+// ============================== Effects.js ==============================
+/**
+ * Effects.js
+ *
+ * Transient visual effects for NEON TETRIS.
+ *
+ * This module owns the **line-clear animation**: when one or more rows are
+ * removed, the cleared cells flash white/neon and emit particle bursts
+ * before the board collapses.
+ *
+ * **Time model:** the effect is driven by an *absolute* elapsed time fed in
+ * by the caller via `sync(elapsedMs)`.  Particle positions are computed
+ * analytically from their initial velocity and a constant gravity, so the
+ * animation is perfectly frame-rate independent — the same elapsed value
+ * always produces the identical frame, no matter when or how often the
+ * renderer paints.
+ *
+ * **Design rules:**
+ *   - Pure presentation: never mutates game state or the board.
+ *   - The Renderer owns the lifecycle: `start(rows)` when a clear begins,
+ *     `sync(elapsedMs)` each frame, `draw(ctx, geom)` to paint, and
+ *     `reset()` when the clear completes.
+ */
+
+
+/** Downward acceleration for particles in px/ms². */
+const PARTICLE_GRAVITY = 0.0004;
+
+class LineClearEffect {
+  /** Creates an idle (inactive) effect. */
+  constructor() {
+    /** @type {boolean} Whether an animation is currently playing. */
+    this._active = false;
+
+    /** @type {number} Current absolute elapsed time in milliseconds. */
+    this._elapsed = 0;
+
+    /**
+     * Rows being cleared, as absolute matrix row indices (including hidden
+     * rows) with the colours of their cells.
+     *
+     * @type {Array<{row: number, cells: Array<{col: number, color: string}>}>}
+     */
+    this._rows = [];
+
+    /**
+     * Particles emitted per cleared cell.
+     *
+     * @type {Array<{vx: number, vy: number, color: string, size: number}>}
+     */
+    this._particles = [];
+  }
+
+  // -----------------------------------------------------------------------
+  //  Public API
+  // -----------------------------------------------------------------------
+
+  /**
+   * Begins a line-clear animation with the given rows.
+   *
+   * @param {Array<{row: number, cells: Array<{col: number, color: string}>}>} rows
+   *   The cleared rows.  Each provides the absolute matrix row index and the
+   *   colours of its cells (used for the flash + particle tint).
+   */
+  start(rows) {
+    this._rows = rows;
+    this._elapsed = 0;
+    this._active = true;
+    this._particles = [];
+
+    // Emit a particle burst for every cleared cell.
+    for (const rowData of rows) {
+      for (const cell of rowData.cells) {
+        this._emitCellParticles(cell.color, cell.col, rowData.row);
+      }
+    }
+  }
+
+  /**
+   * Sets the current absolute elapsed time.  Call once per render frame.
+   * When the total duration elapses, the effect deactivates automatically.
+   *
+   * @param {number} elapsedMs  Elapsed time in milliseconds.
+   */
+  sync(elapsedMs) {
+    if (!this._active) return;
+    this._elapsed = Math.min(elapsedMs, LINE_CLEAR.ANIMATION_MS);
+    if (this._elapsed >= LINE_CLEAR.ANIMATION_MS) {
+      this._active = false;
+    }
+  }
+
+  /** Cancels the effect and clears all state. */
+  reset() {
+    this._active = false;
+    this._elapsed = 0;
+    this._rows = [];
+    this._particles = [];
+  }
+
+  /**
+   * Draws the current animation frame onto the given context.
+   * The context must already be in CSS-pixel space.
+   *
+   * @param {CanvasRenderingContext2D} ctx  Target 2D context.
+   * @param {object}                   geom Cell geometry.
+   */
+  draw(ctx, geom) {
+    if (!this._active) return;
+
+    this._drawFlashingRows(ctx, geom);
+    this._drawParticles(ctx, geom);
+  }
+
+  // -----------------------------------------------------------------------
+  //  Internal — helpers
+  // -----------------------------------------------------------------------
+
+  /**
+   * Emits a radial particle burst for one cleared cell.  Particles inherit
+   * the cell's neon colour.
+   *
+   * @param {string} color  Cell colour (particle tint).
+   */
+  _emitCellParticles(color, col, row) {
+    const count = LINE_CLEAR.PARTICLES_PER_CELL;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.02 + Math.random() * 0.05; // px/ms
+      this._particles.push({
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.02, // upward bias
+        color,
+        size: 1 + Math.random() * 2,
+        col,
+        row,
+      });
+    }
+  }
+
+  /**
+   * Draws the flashing cleared rows (white-hot core fading into neon).
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {object}                   geom
+   */
+  _drawFlashingRows(ctx, geom) {
+    const flashFraction = Math.min(1, this._elapsed / LINE_CLEAR.FLASH_MS);
+    const fadeOut = 1 - this._elapsed / LINE_CLEAR.ANIMATION_MS;
+    const pulse = flashFraction < 1
+      ? 0.6 + 0.4 * Math.sin(flashFraction * Math.PI * 4)
+      : fadeOut;
+
+    for (const rowData of this._rows) {
+      for (const cell of rowData.cells) {
+        const x = Math.round(geom.gridOffsetX + cell.col * geom.cellWidth) + geom.cellGap;
+        const y = Math.round(geom.gridOffsetY + rowData.row * geom.cellHeight) + geom.cellGap;
+        const w = geom.cellWidth - geom.cellGap * 2;
+        const h = geom.cellHeight - geom.cellGap * 2;
+        if (w <= 0 || h <= 0) continue;
+
+        // White-hot core with a neon shadow.
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, pulse) * 0.85;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowColor = cell.color;
+        ctx.shadowBlur = 16;
+        this._roundRect(ctx, x, y, w, h, geom.cellRadius);
+        ctx.fill();
+        ctx.restore();
+
+        // Neon halo under the white core.
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, pulse) * 0.5;
+        ctx.fillStyle = cell.color;
+        this._roundRect(ctx, x, y, w, h, geom.cellRadius);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  /**
+   * Draws the emitted particles using analytic position math.
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {object}                   geom
+   */
+  _drawParticles(ctx, geom) {
+    const t = this._elapsed;
+    const lifeFrac = Math.min(1, t / LINE_CLEAR.ANIMATION_MS);
+    const alpha = Math.max(0, 1 - lifeFrac) * 0.8;
+
+    for (const p of this._particles) {
+      const px = geom.gridOffsetX + (p.col + 0.5) * geom.cellWidth + p.vx * t;
+      const py = geom.gridOffsetY + (p.row + 0.5) * geom.cellHeight + p.vy * t
+        + 0.5 * PARTICLE_GRAVITY * t * t;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(px, py, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Rounded-rectangle path helper (mirrors Renderer._roundRect).
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} x
+   * @param {number} y
+   * @param {number} w
+   * @param {number} h
+   * @param {number} r
+   */
+  _roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      ctx.rect(x, y, w, h);
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  //  Query API
+  // -----------------------------------------------------------------------
+
+  /** @returns {boolean} Whether an animation is currently playing. */
+  get isActive() {
+    return this._active;
+  }
+
+  /** @returns {Array<{row: number, cells: Array<{col: number, color: string}>}>} */
+  getRows() {
+    return this._rows;
+  }
+
+  /** @returns {number} Total animation duration in milliseconds. */
+  get durationMs() {
+    return LINE_CLEAR.ANIMATION_MS;
+  }
+
+  /** @returns {number} 0..1 — fraction of the animation that has elapsed. */
+  get progress() {
+    return this._active
+      ? Math.min(1, this._elapsed / LINE_CLEAR.ANIMATION_MS)
+      : 0;
+  }
+}
+
+/** Brief neon afterimage left behind by a hard-dropped tetromino. */
+class HardDropEffect {
+  constructor() {
+    this._active = false;
+    this._elapsed = 0;
+    this._duration = 170;
+    this._cells = [];
+    this._color = '#00E5FF';
+    this._distance = 0;
+  }
+
+  start(cells, color, distance) {
+    this._active = true;
+    this._elapsed = 0;
+    this._cells = cells.map(([row, col]) => [row, col]);
+    this._color = color;
+    this._distance = Math.max(1, distance);
+  }
+
+  tick(dtMs) {
+    if (!this._active) return;
+    this._elapsed = Math.min(this._duration, this._elapsed + dtMs);
+    if (this._elapsed >= this._duration) this._active = false;
+  }
+
+  reset() { this._active = false; this._cells = []; }
+
+  draw(ctx, geom) {
+    if (!this._active) return;
+    const fade = 1 - this._elapsed / this._duration;
+    const steps = Math.min(8, this._distance);
+    ctx.save();
+    ctx.fillStyle = this._color;
+    ctx.shadowColor = this._color;
+    ctx.shadowBlur = 14;
+    for (const [row, col] of this._cells) {
+      for (let step = 0; step <= steps; step++) {
+        const ratio = step / steps;
+        const trailRow = row - this._distance + ratio * this._distance;
+        const x = Math.round(geom.gridOffsetX + col * geom.cellWidth) + geom.cellGap;
+        const y = Math.round(geom.gridOffsetY + trailRow * geom.cellHeight) + geom.cellGap;
+        const w = geom.cellWidth - geom.cellGap * 2;
+        const h = geom.cellHeight - geom.cellGap * 2;
+        ctx.globalAlpha = fade * 0.22 * (0.25 + ratio);
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+    ctx.restore();
+  }
+
+  get isActive() { return this._active; }
+}
+
+/** Deterministic, short-lived camera shake used for impactful actions. */
+class ScreenShakeEffect {
+  constructor() { this._elapsed = 0; this._duration = 0; this._strength = 0; }
+  start(strength = 5, duration = 130) {
+    this._elapsed = 0;
+    this._duration = duration;
+    this._strength = strength;
+  }
+  tick(dtMs) { this._elapsed = Math.min(this._duration, this._elapsed + dtMs); }
+  reset() { this._elapsed = this._duration = this._strength = 0; }
+  get isActive() { return this._elapsed < this._duration; }
+  get offset() {
+    if (!this.isActive) return { x: 0, y: 0 };
+    const fade = 1 - this._elapsed / this._duration;
+    return {
+      x: Math.sin(this._elapsed * 0.34) * this._strength * fade,
+      y: Math.cos(this._elapsed * 0.49) * this._strength * 0.55 * fade,
+    };
+  }
+}
+
+
+
+// ============================== Renderer.js (fixed) ==============================
+/**
+ * Renderer.js
+ *
+ * NEON TETRIS rendering engine — the sole module that draws onto the game
+ * canvas.  Responsibilities:
+ *
+ *   - High-DPI backing-store management (capped device-pixel-ratio).
+ *   - Responsive stage sizing with a fixed 5:6 aspect ratio.
+ *   - Board-to-canvas coordinate mapping (pixel-perfect cell grid).
+ *   - Neon backdrop (gradient, central glow, faint grid lines).
+ *   - Cell drawing with neon glow effect (two-pass: blurred + crisp).
+ *   - Ghost piece — translucent, collision-free landing preview.
+ *   - Line-clear effect compositing (handled by Effects.js).
+ *
+ * **Design rules:**
+ *   - Stateless: all drawing reads from a snapshot object passed in.
+ *   - Never mutates game state.
+ *   - One draw per frame — no double-buffering needed (single canvas).
+ *   - All coordinate math is in CSS-pixel space; the DPR transform is
+ *     baked into the resize step.
+ */
+
+
+// ---------------------------------------------------------------------------
+//  Internal state (owned by the renderer instance)
+// ---------------------------------------------------------------------------
+
+class Renderer {
+  /**
+   * @param {HTMLCanvasElement} canvas  The game canvas element.
+   * @param {HTMLElement}       stage   The container element used for sizing.
+   */
+  constructor(canvas, stage) {
+    /** @type {CanvasRenderingContext2D} */
+    this.ctx = canvas.getContext('2d', { alpha: false });
+    if (!this.ctx) {
+      throw new Error('[Renderer] Unable to acquire 2D context.');
+    }
+
+    this.canvas = canvas;
+    this.stage = stage;
+
+    /** Current stage dimensions in CSS pixels. */
+    this.width = 0;
+    this.height = 0;
+
+    /** Current device-pixel-ratio (capped). */
+    this.dpr = 1;
+
+    /** Pre-computed cell geometry (recalculated on resize). */
+    this.cellWidth = 0;
+    this.cellHeight = 0;
+    this.cellGap = 0;
+    this.cellRadius = 0;
+
+    /** Offset so the grid is centred within the stage. */
+    this.gridOffsetX = 0;
+    this.gridOffsetY = 0;
+
+    /** Resize observer bound reference for cleanup. */
+    this._onResize = null;
+
+    /** Frame phase for the subtle breathing neon backdrop. */
+    this._glowPhase = 0;
+
+    /** Current graphics quality preset. */
+    this.quality = 'medium';
+
+    /** Cached backdrop canvas used to avoid re-rendering the static background every frame. */
+    this._backgroundCanvas = document.createElement('canvas');
+    this._backgroundCtx = this._backgroundCanvas.getContext('2d');
+    this._backgroundDirty = true;
+    this._backgroundFrame = 0;
+
+    /** Cached board canvas used to avoid re-drawing the locked board every frame. */
+    this._boardCanvas = document.createElement('canvas');
+    this._boardCtx = this._boardCanvas.getContext('2d');
+    this._lastBoardSnapshot = null;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Sizing & DPR
+  // -----------------------------------------------------------------------
+
+  /**
+   * Measures the stage, resizes the backing store, and recomputes all
+   * derived geometry.  Call this on every resize event.
+   *
+   * @returns {{ width: number, height: number }} Stage size in CSS pixels.
+   */
+  resize() {
+    const cssWidth = Math.max(this.stage.clientWidth, 1);
+    const cssHeight = Math.max(this.stage.clientHeight, RENDER.MIN_STAGE_HEIGHT);
+
+    this.dpr = Math.min(window.devicePixelRatio || 1, CANVAS.MAX_DPR);
+    this.canvas.width = Math.round(cssWidth * this.dpr);
+    this.canvas.height = Math.round(cssHeight * this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+    this.width = cssWidth;
+    this.height = cssHeight;
+
+    this._resizeCacheCanvas(this._backgroundCanvas, this._backgroundCtx);
+    this._resizeCacheCanvas(this._boardCanvas, this._boardCtx);
+    this._computeCellGeometry();
+    this._backgroundDirty = true;
+    this._lastBoardSnapshot = null;
+    return { width: cssWidth, height: cssHeight };
+  }
+
+  /**
+   * Updates the quality preset that controls the amount of visual polish.
+   */
+  setQuality(quality = 'medium') {
+    this.quality = ['low', 'medium', 'high'].includes(quality) ? quality : 'medium';
+  }
+
+  /**
+   * Computes pixel-perfect cell dimensions and grid offsets so the
+   * playfield is centred inside the stage.
+   */
+  _computeCellGeometry() {
+    const totalCols = GRID.COLS;
+    const totalRows = GRID.ROWS;
+
+    // Cell size fills the stage height perfectly (maintaining square cells).
+    const cellH = this.height / totalRows;
+    const cellW = cellH;
+
+    this.cellWidth = cellW;
+    this.cellHeight = cellH;
+    this.cellGap = Math.max(1, Math.round(cellW * RENDER.CELL_GAP_FRACTION));
+    this.cellRadius = Math.max(0, cellW * RENDER.CELL_RADIUS_FRACTION);
+
+    // Horizontal centering offset.
+    const gridWidth = totalCols * cellW;
+    this.gridOffsetX = Math.round((this.width - gridWidth) / 2);
+
+    // Vertical start at top of stage (hidden rows are above visible area).
+    this.gridOffsetY = 0;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Background
+  // -----------------------------------------------------------------------
+
+  /**
+   * Draws the neon backdrop: deep gradient, soft central glow, and a
+   * faint grid aligned to the playfield.
+   */
+  drawBackground() {
+    const { ctx, width, height } = this;
+
+    if (this._backgroundDirty || (this._backgroundFrame % 6) === 0) {
+      this._glowPhase += 0.035;
+      const qualityScale = this._qualityScale();
+      const glowAlpha = RENDER.BG_GLOW_ALPHA * (0.75 + Math.sin(this._glowPhase) * 0.25) * qualityScale;
+
+      const bgCtx = this._backgroundCtx;
+      bgCtx.clearRect(0, 0, width, height);
+
+      // 1. Deep vertical gradient.
+      const grad = bgCtx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0, RENDER.BG_GRADIENT_TOP);
+      grad.addColorStop(1, RENDER.BG_GRADIENT_BOTTOM);
+      bgCtx.fillStyle = grad;
+      bgCtx.fillRect(0, 0, width, height);
+
+      // 2. Soft central neon glow.
+      const glow = bgCtx.createRadialGradient(
+        width / 2, height * 0.45, 0,
+        width / 2, height * 0.45, height * 0.7,
+      );
+      glow.addColorStop(0, `rgba(0, 229, 255, ${glowAlpha})`);
+      glow.addColorStop(1, 'rgba(0, 229, 255, 0)');
+      bgCtx.fillStyle = glow;
+      bgCtx.fillRect(0, 0, width, height);
+
+      // 3. Faint playfield grid.
+      this._drawGrid(this._backgroundCtx);
+      this._backgroundDirty = false;
+    }
+
+    this._backgroundFrame += 1;
+    ctx.drawImage(this._backgroundCanvas, 0, 0, width, height);
+  }
+
+  /**
+   * Draws the faint grid lines that frame the playfield cells.
+   * Uses 0.5-pixel offset for crisp 1px lines at integer coordinates.
+   */
+  _drawGrid(ctx = this.ctx) {
+    const { cellWidth, cellHeight, gridOffsetX, gridOffsetY } = this;
+    const totalCols = GRID.COLS;
+    const totalRows = GRID.ROWS;
+
+    ctx.strokeStyle = PALETTE.GRID_LINE;
+    ctx.lineWidth = this.quality === 'low' ? 0.5 : 1;
+
+    ctx.beginPath();
+
+    for (let col = 0; col <= totalCols; col++) {
+      const x = Math.round(gridOffsetX + col * cellWidth) + 0.5;
+      ctx.moveTo(x, gridOffsetY);
+      ctx.lineTo(x, gridOffsetY + totalRows * cellHeight);
+    }
+
+    for (let row = 0; row <= totalRows; row++) {
+      const y = Math.round(gridOffsetY + row * cellHeight) + 0.5;
+      ctx.moveTo(gridOffsetX, y);
+      ctx.lineTo(gridOffsetX + totalCols * cellWidth, y);
+    }
+
+    ctx.stroke();
+  }
+
+  // -----------------------------------------------------------------------
+  //  Cell drawing (neon tube effect)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Draws a single neon cell at the given grid position.
+   *
+   * Uses a two-pass technique for the neon tube look:
+   *   1. Blurred glow pass (shadowBlur + additive composite).
+   *   2. Crisp core pass (solid fill).
+   *
+   * @param {number} col   Grid column (0-based).
+   * @param {number} row   Grid row (0-based, including hidden rows).
+   * @param {string} color CSS hex colour for the cell.
+   */
+  drawCell(col, row, color) {
+    const { ctx, cellWidth, cellHeight, cellGap, cellRadius, gridOffsetX, gridOffsetY } = this;
+
+    // Pixel position of the cell, inset by gap.
+    const x = Math.round(gridOffsetX + col * cellWidth) + cellGap;
+    const y = Math.round(gridOffsetY + row * cellHeight) + cellGap;
+    const w = cellWidth - cellGap * 2;
+    const h = cellHeight - cellGap * 2;
+
+    // Ensure minimum positive size.
+    if (w <= 0 || h <= 0) return;
+
+    // ---- Pass 1: Glow (blurred, additive) ----
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.round(RENDER.GLOW_BLUR * this._qualityScale());
+    ctx.globalAlpha = RENDER.GLOW_ALPHA * this._qualityScale();
+    ctx.fillStyle = color;
+    this._roundRect(x, y, w, h, cellRadius);
+    ctx.fill();
+    ctx.restore();
+
+    // ---- Pass 2: Crisp core ----
+    ctx.fillStyle = color;
+    this._roundRect(x, y, w, h, cellRadius);
+    ctx.fill();
+  }
+
+  /**
+   * Draws a grid of cells from a board snapshot.
+   *
+   * The snapshot is a 2-D array (rows × cols) where each cell is either
+   * `null` (empty) or a CSS colour string.
+   *
+   * @param {Array<Array<string|null>>} boardSnapshot
+   */
+  drawBoard(boardSnapshot) {
+    if (boardSnapshot) {
+      // Always rebuild the cache from the live snapshot. Relying on
+      // reference-equality (`boardSnapshot !== this._lastBoardSnapshot`)
+      // to skip redraws is fragile: if that check ever misfires, a stale
+      // frame's pixels remain baked into the cache and get composited on
+      // top of newly-locked pieces indefinitely, producing permanent
+      // "ghost" blocks that don't match the real board state. Redrawing
+      // every frame costs almost nothing at 10x20 cells and removes the
+      // possibility of that class of bug entirely.
+      this._drawBoardToCache(boardSnapshot);
+    }
+    if (this._boardCanvas) {
+      this.ctx.drawImage(this._boardCanvas, 0, 0, this.width, this.height);
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  //  Utility
+  // -----------------------------------------------------------------------
+
+  /**
+   * Draws a rounded rectangle path.  Falls back to a plain rect if
+   * `roundRect` is unavailable (legacy browsers).
+   *
+   * @param {number} x
+   * @param {number} y
+   * @param {number} w
+   * @param {number} h
+   * @param {number} r  Corner radius in CSS pixels.
+   */
+  _roundRect(x, y, w, h, r) {
+    const { ctx } = this;
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      // Fallback: plain rectangle.
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  //  Lifecycle
+  // -----------------------------------------------------------------------
+
+  /**
+   * Attaches a resize listener bound to this instance.  Call once after
+   * construction, or call `destroy()` to detach.
+   */
+  startResizeListening() {
+    this._onResize = () => {
+      this.resize();
+      this.drawBackground();
+    };
+    window.addEventListener('resize', this._onResize, { passive: true });
+  }
+
+  /** Detaches the resize listener and releases references. */
+  destroy() {
+    if (this._onResize) {
+      window.removeEventListener('resize', this._onResize);
+    }
+    this.canvas.width = 0;
+    this.canvas.height = 0;
+  }
+
+  /**
+   * Draws a collection of cells (an active piece or its ghost) in one colour.
+   *
+   * @param {number[][]} cells   Array of [row, col] grid coordinates.
+   * @param {string}     color   CSS colour for the cells.
+   * @param {Object}     [opts]
+   * @param {boolean}    [opts.ghost]  Render as a translucent ghost outline.
+   */
+  drawPiece(cells, color, { ghost = false } = {}) {
+    if (!cells || cells.length === 0) return;
+    for (const [row, col] of cells) {
+      if (ghost) {
+        this._drawGhostCell(col, row, color);
+      } else {
+        this.drawCell(col, row, color);
+      }
+    }
+  }
+
+  /**
+   * Draws a translucent ghost cell (faint fill + neon outline) used to
+   * show where the active piece will land.
+   *
+   * @param {number} col
+   * @param {number} row
+   * @param {string} color
+   */
+  _drawGhostCell(col, row, color) {
+    const { ctx, cellWidth, cellHeight, cellGap, cellRadius, gridOffsetX, gridOffsetY } = this;
+
+    const x = Math.round(gridOffsetX + col * cellWidth) + cellGap;
+    const y = Math.round(gridOffsetY + row * cellHeight) + cellGap;
+    const w = cellWidth - cellGap * 2;
+    const h = cellHeight - cellGap * 2;
+    if (w <= 0 || h <= 0) return;
+
+    ctx.save();
+
+    // Soft neon glow shared by the fill and outline passes.
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.round(RENDER.GLOW_BLUR * this._qualityScale());
+
+    // Translucent fill marks the future occupied cells.
+    ctx.globalAlpha = GHOST.FILL_ALPHA * this._qualityScale();
+    ctx.fillStyle = color;
+    this._roundRect(x, y, w, h, cellRadius);
+    ctx.fill();
+
+    // Neon outline keeps the landing cells distinct, even when overlaying
+    // the solid active piece at the bottom of the stack.
+    ctx.globalAlpha = GHOST.STROKE_ALPHA * this._qualityScale();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1, Math.round(cellGap * 0.5));
+    this._roundRect(x, y, w, h, cellRadius);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  _qualityScale() {
+    switch (this.quality) {
+      case 'low': return 0.7;
+      case 'high': return 1.15;
+      default: return 1;
+    }
+  }
+
+  _resizeCacheCanvas(canvas, ctx) {
+    if (!canvas || !ctx) return;
+    canvas.width = Math.round(this.width * this.dpr);
+    canvas.height = Math.round(this.height * this.dpr);
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
+
+  _drawBoardToCache(boardSnapshot) {
+    const boardCtx = this._boardCtx;
+    if (!boardCtx) return;
+
+    boardCtx.clearRect(0, 0, this.width, this.height);
+    const totalRows = boardSnapshot.length;
+    const totalCols = boardSnapshot[0]?.length || 0;
+
+    for (let row = 0; row < totalRows; row++) {
+      for (let col = 0; col < totalCols; col++) {
+        const color = boardSnapshot[row][col];
+        if (color) {
+          this._drawCellToContext(boardCtx, col, row, color);
+        }
+      }
+    }
+  }
+
+  _drawCellToContext(ctx, col, row, color) {
+    const { cellWidth, cellHeight, cellGap, cellRadius, gridOffsetX, gridOffsetY } = this;
+    const x = Math.round(gridOffsetX + col * cellWidth) + cellGap;
+    const y = Math.round(gridOffsetY + row * cellHeight) + cellGap;
+    const w = cellWidth - cellGap * 2;
+    const h = cellHeight - cellGap * 2;
+    if (w <= 0 || h <= 0) return;
+
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.round(RENDER.GLOW_BLUR * this._qualityScale());
+    ctx.globalAlpha = RENDER.GLOW_ALPHA * this._qualityScale();
+    ctx.fillStyle = color;
+    this._roundRectToContext(ctx, x, y, w, h, cellRadius);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = color;
+    this._roundRectToContext(ctx, x, y, w, h, cellRadius);
+    ctx.fill();
+  }
+
+  _roundRectToContext(ctx, x, y, w, h, r) {
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+    }
+  }
+
+  /**
+   * Full frame render: background, locked board, ghost piece, active piece
+   * overlay, and (if active) the line-clear animation.
+   *
+   * @param {Array<Array<string|null>>} [boardSnapshot]  Board grid or null.
+   * @param {Object}                    [layers]         Optional overlay layers.
+   * @param {{cells: number[][], color: string}|null} [layers.ghost]  Ghost piece.
+   * @param {{cells: number[][], color: string}|null} [layers.piece]  Active piece.
+   * @param {Object|null}               [layers.clearEffect]  Active LineClearEffect.
+   * @param {Object|null}               [layers.dropEffect]   Active hard-drop trail.
+   * @param {Object|null}               [layers.shakeEffect]  Active screen shake.
+   */
+  render(boardSnapshot, layers = {}) {
+    this.drawBackground();
+
+    const shake = layers.shakeEffect?.offset ?? { x: 0, y: 0 };
+    this.ctx.save();
+    this.ctx.translate(shake.x, shake.y);
+
+    if (boardSnapshot) {
+      this.drawBoard(boardSnapshot);
+    }
+    // Hard-drop trail/streak effect disabled per request — piece is drawn
+    // directly with no fading afterimage above it.
+    if (layers.piece) {
+      this.drawPiece(layers.piece.cells, layers.piece.color);
+    }
+    // The ghost is drawn AFTER the active piece so it stays visible even
+    // once the piece reaches the landing row — as a translucent overlay it
+    // always indicates the projected drop position ("always shows landing").
+    if (layers.ghost) {
+      this.drawPiece(layers.ghost.cells, layers.ghost.color, { ghost: true });
+    }
+    if (layers.clearEffect && layers.clearEffect.isActive) {
+      layers.clearEffect.draw(this.ctx, {
+        cellWidth: this.cellWidth,
+        cellHeight: this.cellHeight,
+        cellGap: this.cellGap,
+        cellRadius: this.cellRadius,
+        gridOffsetX: this.gridOffsetX,
+        gridOffsetY: this.gridOffsetY,
+      });
+    }
+    this.ctx.restore();
+  }
+}
+
+
+// ============================== GameLoop.js ==============================
+/**
+ * GameLoop.js
+ *
+ * Fixed-timestep game loop built on requestAnimationFrame.
+ *
+ * **Why a fixed timestep?**
+ *   - Deterministic simulation regardless of monitor refresh rate (60, 120,
+ *     144 Hz).  The game steps at a constant tick interval (default 16.67 ms).
+ *   - No floating-point drift — the simulation is always an integer number of
+ *     ticks behind the real clock.
+ *   - Rendering is decoupled from simulation: one draw per rAF callback,
+ *     even if zero, one, or multiple ticks occurred since the last frame.
+ *
+ * Usage:
+ * ```
+ * const loop = new GameLoop({
+ *   tick:   () => { /* update game state *\/ },
+ *   render: () => { /* draw frame *\/ },
+ * });
+ * loop.start();
+ * ```
+ *
+ * The loop emits a `tick` callback for each accumulated simulation step and
+ * a `render` callback once per animation frame, after all ticks have been
+ * processed.
+ *
+ * Reference: https://gafferongames.com/post/fix_your_timestep/
+ */
+
+
+class GameLoop {
+  /**
+   * @param {Object}   callbacks
+   * @param {Function} callbacks.tick    Simulation step (called 0..N times per frame).
+   * @param {Function} callbacks.render  Render callback (called once per frame).
+   * @param {number}   [fps]             Target ticks per second (default: CANVAS.FPS).
+   */
+  constructor({ tick, render }, fps = CANVAS.FPS) {
+    /** @type {Function} */
+    this._tick = tick;
+    /** @type {Function} */
+    this._render = render;
+
+    /** Tick interval in milliseconds. */
+    this.tickMs = 1000 / fps;
+
+    /** Accumulator for fixed-timestep simulation. */
+    this._accumulator = 0;
+
+    /** Cap the accumulator to prevent it from growing unbounded after long stalls. */
+    this._maxAccumulatorMs = this.tickMs * 4;
+
+    /** Timestamp of the previous frame (used for delta calculation). */
+    this._lastTime = 0;
+
+    /** Has the loop been started? */
+    this._running = false;
+
+    /** rAF handle for cancellation. */
+    this._rafId = null;
+
+    /** Bound frame callback (pre-allocated to avoid creating closures per frame). */
+    this._frame = this._frame.bind(this);
+  }
+
+  // -----------------------------------------------------------------------
+  //  Public API
+  // -----------------------------------------------------------------------
+
+  /** Starts the loop.  Safe to call multiple times — subsequent calls are no-ops. */
+  start() {
+    if (this._running) return;
+    this._running = true;
+    this._lastTime = performance.now();
+    this._accumulator = 0;
+    this._rafId = requestAnimationFrame(this._frame);
+  }
+
+  /** Stops the loop.  No more ticks or renders until `start()` is called again. */
+  stop() {
+    this._running = false;
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+  }
+
+  /** @returns {boolean} Whether the loop is currently running. */
+  get isRunning() {
+    return this._running;
+  }
+
+  // -----------------------------------------------------------------------
+  //  Internal
+  // -----------------------------------------------------------------------
+
+  /**
+   * The frame callback — called once per requestAnimationFrame.
+   *
+   * 1. Compute elapsed wall-clock time (capped at 250 ms to avoid spiral
+   *    of death after tab-switch or long frame).
+   * 2. Accumulate elapsed time.
+   * 3. Step the simulation while the accumulator has at least one tick.
+   * 4. Render once.
+   * 5. Schedule the next frame.
+   *
+   * @param {DOMHighResTimeStamp} now
+   */
+  _frame(now) {
+    if (!this._running) return;
+
+    const elapsed = Math.min(now - this._lastTime, 250);
+    this._lastTime = now;
+    this._accumulator = Math.min(this._accumulator + elapsed, this._maxAccumulatorMs);
+
+    // Consume ticks.
+    while (this._accumulator >= this.tickMs) {
+      this._tick();
+      this._accumulator -= this.tickMs;
+    }
+
+    // Render once per frame.
+    this._render();
+
+    // Schedule next frame.
+    this._rafId = requestAnimationFrame(this._frame);
+  }
+}
+
+
+// ============================== Input.js ==============================
+/**
+ * Input.js — Input Manager
+ *
+ * Normalises keyboard input into semantic game actions and feeds them to
+ * the game through a small, side-effect-free API.  It is the *only* module
+ * that reads raw key events.
+ *
+ * **Key-repeat bug prevention:**
+ *   - Browser auto-repeat (`event.repeat`) is ignored on keydown.
+ *   - Movement uses the arcade-standard DAS (Delayed Auto Shift) + ARR
+ *     (Auto Repeat Rate) timing implemented *manually* inside the fixed
+ *     timestep, so repeat cadence is identical on every machine.
+ *   - A `blur` handler clears all held state, so switching tabs/windows can
+ *     never leave a key "stuck down".
+ *   - Edge actions (rotate, hard drop, hold, pause) fire exactly once per
+ *     physical key press — never repeatedly while held.
+ *
+ * **Usage:**
+ * ```
+ * const input = new InputManager();
+ * input.attach();
+ *
+ * // once per fixed tick:
+ * input.update(tickMs);
+ *
+ * // consume a single-press action:
+ * if (input.consumePress(ACTIONS.ROTATE_CW)) { ... }
+ *
+ * // consume an auto-repeat movement:
+ * if (input.consumePress(ACTIONS.MOVE_LEFT))   this._move(-1);
+ * if (input.consumeRepeat(ACTIONS.MOVE_LEFT))  this._move(-1);
+ *
+ * // check a held action (soft drop):
+ * if (input.isHeld(ACTIONS.SOFT_DROP)) { ... }
+ * ```
+ *
+ * This module owns no game state — it only translates input.
+ */
+
+
+/** Semantic actions produced by the input manager. */
+const ACTIONS = Object.freeze({
+  MOVE_LEFT: 'moveLeft',
+  MOVE_RIGHT: 'moveRight',
+  ROTATE_CW: 'rotateCW',
+  ROTATE_CCW: 'rotateCCW',
+  SOFT_DROP: 'softDrop',
+  HARD_DROP: 'hardDrop',
+  HOLD: 'hold',
+  PAUSE: 'pause',
+});
+
+class InputManager {
+  /**
+   * Builds the input manager and precomputes the key→action lookup tables.
+   */
+  constructor({ settings } = {}) {
+    this.settings = settings || null;
+
+    /** @type {Map<string, string>} KeyboardEvent.code → action name. */
+    this._keyToAction = new Map();
+
+    /** @type {Set<string>} Actions currently held down. */
+    this._held = new Set();
+
+    /** @type {Set<string>} Actions with a pending single-fire press. */
+    this._pressed = new Set();
+
+    /** @type {Set<string>} Actions whose DAS/ARR repeat has elapsed. */
+    this._repeatPresses = new Set();
+
+    /** @type {Map<string, number>} Action → remaining DAS/ARR timer (ms). */
+    this._repeatState = new Map();
+
+    /** @type {Set<string>} Actions that use DAS/ARR auto-repeat. */
+    this._dasActions = new Set(INPUT.DAS_ACTIONS);
+
+    /** @type {number} Sensitivity multiplier for touch interactions. */
+    this.touchSensitivity = 0.5;
+
+    this._buildBindings();
+
+    // Pre-bound listeners (stable references for add/removeEventListener).
+    this._boundKeyDown = this._onKeyDown.bind(this);
+    this._boundKeyUp = this._onKeyUp.bind(this);
+    this._boundBlur = this._onBlur.bind(this);
+  }
+
+  // -------------------------------------------------------------------------
+  //  Lifecycle
+  // -------------------------------------------------------------------------
+
+  /**
+   * Attaches key listeners to the window.  `preventDefault()` stops the
+   * browser from scrolling on arrow/space keys.
+   */
+  attach() {
+    window.addEventListener('keydown', this._boundKeyDown, { passive: false });
+    window.addEventListener('keyup', this._boundKeyUp, { passive: false });
+    window.addEventListener('blur', this._boundBlur);
+  }
+
+  /**
+   * Detaches all listeners and clears input state.
+   */
+  detach() {
+    window.removeEventListener('keydown', this._boundKeyDown);
+    window.removeEventListener('keyup', this._boundKeyUp);
+    window.removeEventListener('blur', this._boundBlur);
+    this.clear();
+  }
+
+  /** Clears every bit of input state (held, pressed, repeat). */
+  clear() {
+    this._held.clear();
+    this._pressed.clear();
+    this._repeatPresses.clear();
+    this._repeatState.clear();
+  }
+
+  /**
+   * Presses a semantic action from a non-keyboard source (touch controls).
+   * It shares the same DAS/ARR state as a physical keyboard key.
+   *
+   * @param {string} action
+   */
+  pressAction(action) {
+    if (!Object.values(ACTIONS).includes(action) || this._held.has(action)) return;
+    this._held.add(action);
+    this._pressed.add(action);
+    if (this._dasActions.has(action)) this._repeatState.set(action, INPUT.DAS_MS);
+  }
+
+  /** Releases a semantic action previously pressed by a touch control. */
+  releaseAction(action) {
+    this._held.delete(action);
+    this._pressed.delete(action);
+    this._repeatState.delete(action);
+  }
+
+  /** Queues one discrete action, ideal for tap and swipe gestures. */
+  tapAction(action) {
+    if (Object.values(ACTIONS).includes(action)) this._pressed.add(action);
+  }
+
+  // -------------------------------------------------------------------------
+  //  Internal — key event handling
+  // -------------------------------------------------------------------------
+
+  /**
+   * Builds the `keyToAction` reverse lookup from the active bindings.
+   */
+  _buildBindings(customBindings = null) {
+    const bindings = this._resolveBindings(customBindings);
+    for (const [action, codes] of Object.entries(bindings)) {
+      for (const code of codes) {
+        this._keyToAction.set(code, action);
+      }
+    }
+  }
+
+  /** Rebuilds the action lookup with a custom remapping object. */
+  setKeyBindings(bindings) {
+    this._keyToAction = new Map();
+    this._buildBindings(bindings);
+  }
+
+  /** Updates the sensitivity used for touch gestures. */
+  setTouchSensitivity(value) {
+    this.touchSensitivity = Math.max(0.1, Math.min(1, Number(value) || 0.5));
+    return this.touchSensitivity;
+  }
+
+  /** Returns the current touch sensitivity multiplier. */
+  getTouchSensitivity() {
+    return this.touchSensitivity;
+  }
+
+  _resolveBindings(customBindings = null) {
+    if (customBindings) {
+      return Object.fromEntries(Object.entries(INPUT.KEY_BINDINGS).map(([action, defaults]) => {
+        const value = customBindings[action];
+        const codes = Array.isArray(value) ? value : (value ? [value] : defaults);
+        return [action, codes];
+      }));
+    }
+
+    const remap = this.settings?.get?.('keyboardRemap');
+    if (!remap) return INPUT.KEY_BINDINGS;
+
+    return Object.fromEntries(Object.entries(INPUT.KEY_BINDINGS).map(([action, defaults]) => {
+      const value = remap[action];
+      const codes = Array.isArray(value) ? value : (value ? [value] : defaults);
+      return [action, codes];
+    }));
+  }
+
+  /**
+   * keydown handler.  Ignores browser auto-repeat and duplicate presses.
+   *
+   * @param {KeyboardEvent} event
+   */
+  _onKeyDown(event) {
+    const action = this._keyToAction.get(event.code);
+    if (!action) return;
+
+    event.preventDefault();
+    if (event.repeat) return; // ignore OS/browser auto-repeat
+    this.pressAction(action);
+  }
+
+  /**
+   * keyup handler — releases the action and cancels its repeat timer.
+   *
+   * @param {KeyboardEvent} event
+   */
+  _onKeyUp(event) {
+    const action = this._keyToAction.get(event.code);
+    if (!action) return;
+
+    event.preventDefault();
+    this.releaseAction(action);
+  }
+
+  /**
+   * Window blur handler — guarantees no key is stuck when focus is lost.
+   */
+  _onBlur() {
+    this.clear();
+  }
+
+  // -------------------------------------------------------------------------
+  //  Per-tick update
+  // -------------------------------------------------------------------------
+
+  /**
+   * Advances the DAS/ARR repeat timers.  Call once per fixed simulation
+   * tick with the tick duration in milliseconds.
+   *
+   * @param {number} dtMs  Elapsed simulation time in milliseconds.
+   */
+  update(dtMs) {
+    for (const action of this._held) {
+      if (!this._dasActions.has(action)) continue;
+
+      let timer = this._repeatState.get(action);
+      if (timer === undefined) {
+        timer = INPUT.DAS_MS; // re-seed (e.g. after blur/clear)
+      }
+
+      timer -= dtMs;
+      if (timer <= 0) {
+        this._repeatPresses.add(action);
+        timer += INPUT.ARR_MS;
+      }
+      this._repeatState.set(action, timer);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  //  Query API
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns `true` exactly once for an edge action since the last call,
+   * then clears it.  Use for rotate / hard drop / hold / pause.
+   *
+   * @param {string} action  One of the `ACTIONS` values.
+   * @returns {boolean}
+   */
+  consumePress(action) {
+    if (this._pressed.has(action)) {
+      this._pressed.delete(action);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Returns `true` when a DAS/ARR repeat should fire for a held action
+   * since the last call, then clears it.  Use for moveLeft / moveRight.
+   *
+   * @param {string} action  One of the `ACTIONS` values.
+   * @returns {boolean}
+   */
+  consumeRepeat(action) {
+    if (this._repeatPresses.has(action)) {
+      this._repeatPresses.delete(action);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Returns `true` while an action's key is physically held down.
+   * Use for soft drop (accelerates gravity rather than repeating).
+   *
+   * @param {string} action
+   * @returns {boolean}
+   */
+  isHeld(action) {
+    return this._held.has(action);
+  }
+
+  /**
+   * Snapshot of currently held actions (for debugging / diagnostics).
+   *
+   * @returns {string[]}
+   */
+  getHeldActions() {
+    return [...this._held];
+  }
+}
+
+
+// ============================== SettingsManager.js ==============================
+class SettingsManager {
+  constructor({ storage = globalThis.localStorage, namespace = 'neon-tetris-settings' } = {}) {
+    this.storage = storage;
+    this.namespace = namespace;
+    this.defaults = {
+      musicVolume: 0.28,
+      soundVolume: 0.72,
+      graphicsQuality: 'medium',
+      theme: 'neon',
+      keyboardRemap: {
+        moveLeft: 'ArrowLeft',
+        moveRight: 'ArrowRight',
+        softDrop: 'ArrowDown',
+        hardDrop: 'Space',
+        rotateCW: 'ArrowUp',
+        rotateCCW: 'KeyZ',
+        hold: 'KeyC',
+        pause: 'Escape',
+      },
+      touchSensitivity: 0.5,
+    };
+    this.state = this._load();
+  }
+
+  get(key) {
+    return this.state[key];
+  }
+
+  set(key, value) {
+    this.state[key] = value;
+    this._persist();
+    return this.state[key];
+  }
+
+  getAll() {
+    return { ...this.state };
+  }
+
+  reset() {
+    this.state = { ...this.defaults };
+    this._persist();
+    return this.getAll();
+  }
+
+  _load() {
+    const raw = this._safeRead();
+    if (!raw) return this._cloneDefaults();
+
+    try {
+      const parsed = JSON.parse(raw);
+      return this._mergeDefaults(parsed);
+    } catch {
+      return this._cloneDefaults();
+    }
+  }
+
+  _persist() {
+    try {
+      this.storage?.setItem(this.namespace, JSON.stringify(this.state));
+    } catch {
+      // Storage can be blocked in private browsing or restricted contexts.
+    }
+  }
+
+  _safeRead() {
+    try {
+      return this.storage?.getItem(this.namespace);
+    } catch {
+      return null;
+    }
+  }
+
+  _mergeDefaults(source) {
+    const merged = this._cloneDefaults();
+    for (const [key, value] of Object.entries(source || {})) {
+      if (key === 'keyboardRemap' && value && typeof value === 'object') {
+        merged.keyboardRemap = { ...merged.keyboardRemap, ...value };
+      } else if (Object.prototype.hasOwnProperty.call(merged, key)) {
+        merged[key] = value;
+      }
+    }
+    return merged;
+  }
+
+  _cloneDefaults() {
+    return {
+      ...this.defaults,
+      keyboardRemap: { ...this.defaults.keyboardRemap },
+    };
+  }
+}
+
+
+// ============================== HighScore.js ==============================
+/**
+ * HighScore.js
+ *
+ * Minimal persistence layer for the local high score.
+ *
+ * Uses `localStorage` with a namespaced key and defensive parsing so the
+ * game never crashes on corrupt/legacy data.  Pure storage — no DOM, no
+ * game state.
+ */
+
+/** Storage key (namespaced to avoid clashing with other apps on the origin). */
+const STORAGE_KEY = 'neon-tetris:high-score';
+
+/**
+ * Loads the saved high score.
+ *
+ * @returns {number} The persisted high score, or 0 if absent/corrupt.
+ */
+function loadHighScore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw === null) return 0;
+    const value = Number.parseInt(raw, 10);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    // localStorage unavailable (private mode, storage disabled) — fall back.
+    return 0;
+  }
+}
+
+/**
+ * Persists a new high score (only if it beats the current one).
+ *
+ * @param {number} score  The candidate score.
+ * @returns {number} The resulting high score after the merge.
+ */
+function saveHighScore(score) {
+  const current = loadHighScore();
+  const next = Math.max(current, Math.floor(score));
+  try {
+    localStorage.setItem(STORAGE_KEY, String(next));
+  } catch {
+    // Silently ignore storage failures (non-fatal).
+  }
+  return next;
+}
+
+
+
+// ============================== Game.js ==============================
+/**
+ * Game.js — Game orchestrator
+ *
+ * The single composition root for gameplay.  Owns the simulation state
+ * (board, bag, active/hold pieces), consumes semantic actions from the
+ * InputManager, and drives the fixed-timestep loop.
+ *
+ * **Responsibilities (current milestone):**
+ *   - Spawn pieces from the 7-bag.
+ *   - Handle move left/right with wall collision.
+ *   - Handle soft drop, hard drop.
+ *   - Handle CW/CCW rotation with SRS wall kicks.
+ *   - Handle hold piece (once per drop).
+ *   - Handle pause (toggle).
+ *   - Automatic falling via delta-time gravity (FPS-independent).
+ *   - **Locking:** a piece locks onto the board after a lock delay once it
+ *     lands, then the next piece spawns.  Hard drop locks instantly.
+ *   - Produce a render snapshot (board + ghost + active piece + lock delay).
+ *
+ * **Design rules:**
+ *   - No DOM access, no raw key events — all input arrives via the
+ *     `InputManager` semantic actions.
+ *   - No direct rendering — it exposes a `getRenderState()` snapshot that
+ *     the render loop consumes.
+ */
+
+
+/** Game state machine. */
+const GAME_STATE = Object.freeze({
+  MENU: 'menu',
+  PLAYING: 'playing',
+  PAUSED: 'paused',
+  CLEARING: 'clearing',
+  GAME_OVER: 'gameOver',
+});
+
+class Game {
+  /**
+   * @param {object}     deps
+   * @param {InputManager} deps.input   The input manager (already attached).
+   */
+  constructor({ input }) {
+    /** @type {InputManager} */
+    this.input = input;
+
+    /** @type {Board} */
+    this.board = new Board();
+
+    /** @type {Bag} */
+    this.bag = new Bag();
+
+    /** @type {Gravity} Delta-time-based gravity controller. */
+    this.gravity = new Gravity();
+
+    /** @type {Level} Level progression tracker. */
+    this.level = new Level();
+
+    /** @type {Score} Modern guideline scoring model. */
+    this.score = new Score();
+
+    /** @type {LockDelay} Timer that governs grounded-piece locking. */
+    this.lockDelay = new LockDelay();
+
+    /** @type {LineClearEffect} Transient line-clear animation effect. */
+    this.clearEffect = new LineClearEffect();
+
+    /** @type {HardDropEffect} */
+    this.dropEffect = new HardDropEffect();
+
+    /** @type {ScreenShakeEffect} */
+    this.shakeEffect = new ScreenShakeEffect();
+
+    /** @type {number} Milliseconds elapsed in the current clearing phase. */
+    this._clearElapsed = 0;
+
+    /** @type {Tetromino|null} */
+    this.activePiece = null;
+
+    /** @type {Tetromino|null} */
+    this.holdPiece = null;
+
+    /** @type {boolean} Whether hold has been used for the current drop. */
+    this._holdUsed = false;
+
+    /** @type {string} Current state. */
+    this.state = GAME_STATE.MENU;
+
+    /** @type {string[]} Discrete presentation events emitted by gameplay. */
+    this._events = [];
+  }
+
+  // -------------------------------------------------------------------------
+  //  Public lifecycle
+  // -------------------------------------------------------------------------
+
+  /** Starts a fresh game. */
+  start() {
+    this.board.reset();
+    this.bag.reset();
+    this._holdUsed = false;
+    this.holdPiece = null;
+    this.gravity.reset();
+    this.level.reset();
+    this.score.reset();
+    this.lockDelay.disarm();
+    this.clearEffect.reset();
+    this.dropEffect.reset();
+    this.shakeEffect.reset();
+    this._clearElapsed = 0;
+    this._events = [];
+    this.state = GAME_STATE.PLAYING;
+    this._spawnNextPiece();
+  }
+
+  /**
+   * Advances the simulation by one fixed tick.
+   * Called by the game loop; this is the ONLY place state mutates.
+   *
+   * The pause toggle is processed in every state so that the Escape/P
+   * key can both pause and unpause the game.
+   *
+   * @param {number} dtMs  Tick duration in milliseconds.
+   */
+  update(dtMs) {
+    this.dropEffect.tick(dtMs);
+    this.shakeEffect.tick(dtMs);
+    // Always allow the pause toggle, regardless of current state.
+    if (this.input.consumePress(ACTIONS.PAUSE)) {
+      this.togglePause();
+    }
+
+    // While clearing, the board is frozen for the animation; only the
+    // effect timer advances.  When it finishes, rows collapse and the
+    // next piece spawns.
+    if (this.state === GAME_STATE.CLEARING) {
+      this._updateClearing(dtMs);
+      return;
+    }
+
+    if (this.state !== GAME_STATE.PLAYING) return;
+
+    // 1. Advance DAS/ARR repeat timers in the input manager.
+    this.input.update(dtMs);
+
+    // 2. Edge actions (fire exactly once per press).
+    this._handleEdgeActions();
+
+    // 3. Continuous actions (DAS movement + soft drop).
+    this._handleContinuousActions();
+
+    // 4. Gravity — automatic falling, delta-time based, FPS-independent.
+    this._applyGravity(dtMs);
+
+    // 5. Lock delay countdown — a grounded piece locks after the timer.
+    this._updateLockDelay(dtMs);
+  }
+
+  /** Toggles pause while playing. */
+  togglePause() {
+    if (this.state === GAME_STATE.PLAYING) {
+      this.pause();
+    } else if (this.state === GAME_STATE.PAUSED) {
+      this.resume();
+    }
+  }
+
+  /** Pauses an active game without changing any simulation state. */
+  pause() {
+    if (this.state === GAME_STATE.PLAYING) {
+      this.state = GAME_STATE.PAUSED;
+    }
+  }
+
+  /** Resumes a previously paused game. */
+  resume() {
+    if (this.state === GAME_STATE.PAUSED) {
+      this.state = GAME_STATE.PLAYING;
+    }
+  }
+
+  /** Starts a fresh game from the pause menu. */
+  restart() {
+    this.input.clear();
+    this.start();
+  }
+
+  /** Ends the current run and returns to the application menu. */
+  quitToMenu() {
+    this.input.clear();
+    this.board.reset();
+    this.bag.reset();
+    this.activePiece = null;
+    this.holdPiece = null;
+    this._holdUsed = false;
+    this.gravity.reset();
+    this.level.reset();
+    this.score.reset();
+    this.lockDelay.disarm();
+    this.clearEffect.reset();
+    this.dropEffect.reset();
+    this.shakeEffect.reset();
+    this._clearElapsed = 0;
+    this.state = GAME_STATE.MENU;
+  }
+
+  // -------------------------------------------------------------------------
+  //  Render snapshot
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns the data needed to render one frame.
+   *
+   * @returns {{
+   *   board: Array<Array<string|null>>,
+   *   piece: {cells: number[][], color: string}|null,
+   *   ghost: {cells: number[][], color: string}|null,
+   *   state: string,
+   *   level: number,
+   *   lines: number,
+   *   progress: number,
+   *   hold: string|null,
+   *   next: string[],
+   *   lockDelay: {active: boolean, remaining: number, progress: number},
+   * }}
+   */
+  getRenderState() {
+    const boardSnapshot = this.board.getSnapshot();
+
+    let piece = null;
+    let ghost = null;
+
+    if (this.activePiece && this.state !== GAME_STATE.GAME_OVER) {
+      piece = {
+        cells: this._toVisibleRows(this.activePiece.getCells()),
+        color: this.activePiece.colour,
+      };
+
+      const ghostCells = this.activePiece.getGhostCells((cells) => {
+        const matrix = this.board.getFullMatrix();
+        return Collision.isCollision(matrix, cells);
+      });
+      ghost = {
+        cells: this._toVisibleRows(ghostCells),
+        color: this.activePiece.colour,
+      };
+    }
+
+    return {
+      board: boardSnapshot,
+      piece,
+      ghost,
+      state: this.state,
+      score: this.score.score,
+      combo: this.score.combo,
+      level: this.level.level,
+      lines: this.level.totalLines,
+      progress: this.gravity.progress,
+      hold: this.holdPiece ? this.holdPiece.type : null,
+      next: this.bag.preview(PREVIEW.COUNT),
+      lockDelay: {
+        active: this.lockDelay.isActive,
+        remaining: this.lockDelay.remaining,
+        progress: this.lockDelay.progress,
+      },
+      clearing: this.clearEffect.isActive
+        ? {
+            rows: this.clearEffect.getRows(),
+            progress: this.clearEffect.progress,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Converts absolute matrix-row cells/rows (which include the hidden
+   * spawn rows above the visible playfield) into the same 0-based row
+   * space used by `board.getSnapshot()`, which the Renderer expects.
+   *
+   * @param {Array<[number, number]>} cells  [row, col] pairs in matrix space.
+   * @returns {Array<[number, number]>} [row, col] pairs in visible-row space.
+   */
+  _toVisibleRows(cells) {
+    return cells.map(([r, c]) => [r - GRID.HIDDEN_ROWS, c]);
+  }
+
+  /** Returns and clears game events for presentation systems such as audio. */
+  consumeEvents() {
+    const events = this._events;
+    this._events = [];
+    return events;
+  }
+
+  _emit(event) {
+    this._events.push(event);
+  }
+
+  // -------------------------------------------------------------------------
+  //  Internal — input handling
+  // -------------------------------------------------------------------------
+
+  /**
+   * Consumes single-press actions: rotation, hard drop, hold.
+   * (Pause is handled separately in `update()`.)
+   */
+  _handleEdgeActions() {
+    if (this.input.consumePress(ACTIONS.ROTATE_CW)) {
+      this._rotate(true);
+    }
+    if (this.input.consumePress(ACTIONS.ROTATE_CCW)) {
+      this._rotate(false);
+    }
+    if (this.input.consumePress(ACTIONS.HARD_DROP)) {
+      this._hardDrop();
+    }
+    if (this.input.consumePress(ACTIONS.HOLD)) {
+      this._hold();
+    }
+  }
+
+  /**
+   * Consumes continuous actions: DAS movement and soft drop.
+   *
+   * Soft drop is handled by toggling the gravity multiplier rather than
+   * manually stepping the piece each tick — this keeps the gravity system
+   * as the single authority on vertical movement.
+   */
+  _handleContinuousActions() {
+    // DAS/ARR auto-repeat movement.
+    if (this.input.consumePress(ACTIONS.MOVE_LEFT) || this.input.consumeRepeat(ACTIONS.MOVE_LEFT)) {
+      this._move(-1);
+    }
+    if (this.input.consumePress(ACTIONS.MOVE_RIGHT) || this.input.consumeRepeat(ACTIONS.MOVE_RIGHT)) {
+      this._move(1);
+    }
+
+    // Soft drop — accelerate gravity.
+    const softDropping = this.input.isHeld(ACTIONS.SOFT_DROP);
+    this.gravity.setSoftDrop(softDropping);
+  }
+
+  // -------------------------------------------------------------------------
+  //  Internal — gameplay
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns the full board matrix (with hidden rows) for collision checks.
+   *
+   * @returns {Array<Array<string|null>>}
+   */
+  _getMatrix() {
+    return this.board.getFullMatrix();
+  }
+
+  /**
+   * Checks whether the active piece is currently grounded — i.e. it cannot
+   * descend one more cell because of the floor or locked cells.
+   *
+   * @returns {boolean}
+   */
+  _isGrounded() {
+    if (!this.activePiece) return false;
+    const probe = this.activePiece.clone();
+    probe.row += 1;
+    return Collision.isCollision(this._getMatrix(), probe.getCells());
+  }
+
+  /**
+   * Spawns the next piece from the bag.
+   *
+   * **Clip prevention:** if the spawn position collides (the stack has
+   * reached the top), the game is over — the piece is never drawn
+   * overlapping existing blocks, so nothing visually "clips" through.
+   *
+   * On spawn, the lock delay is armed if the piece is already grounded
+   * (e.g. a fresh piece landing directly on a high stack).
+   */
+  _spawnNextPiece() {
+    const type = this.bag.next();
+    this.activePiece = new Tetromino(type);
+    // NOTE: `_holdUsed` is intentionally NOT reset here.  Spawning also
+    // happens on the first hold (to replace the stored piece), and at that
+    // moment the player must NOT be able to hold again for the same drop.
+    // The flag only resets when a new drop begins (piece locks), which the
+    // callers `_lockPiece()` / `_updateClearing()` handle explicitly.
+    this.gravity.resetAccumulator();
+    this.lockDelay.disarm();
+
+    const matrix = this._getMatrix();
+    if (Collision.isCollision(matrix, this.activePiece.getCells())) {
+      this._endGame();
+      return;
+    }
+
+    // If the new piece is already grounded, arm the lock delay immediately.
+    if (this._isGrounded()) {
+      this.lockDelay.start();
+    }
+  }
+
+  /**
+   * Ends the run when a new or held piece cannot occupy its spawn cells.
+   * Keeping this transition in one place guarantees the board stays frozen
+   * for the Game Over presentation and no pending input can mutate it.
+   */
+  _endGame() {
+    this.state = GAME_STATE.GAME_OVER;
+    this.activePiece = null;
+    this.gravity.resetAccumulator();
+    this.lockDelay.disarm();
+    this.input.clear();
+    this._emit(AUDIO_EVENT.GAME_OVER);
+    this.shakeEffect.start(8, 230);
+  }
+
+  /**
+   * Attempts to move the active piece horizontally.
+   *
+   * A successful grounded move refreshes the lock delay (guideline lock
+   * delay reset) so the player can slide a landed piece into a gap.
+   *
+   * @param {number} dx  -1 for left, +1 for right.
+   * @returns {boolean} Whether the move succeeded.
+   */
+  _move(dx) {
+    if (!this.activePiece || this.state !== GAME_STATE.PLAYING) return false;
+
+    const wasGrounded = this._isGrounded();
+    const matrix = this._getMatrix();
+    const probe = this.activePiece.clone();
+    probe.col += dx;
+    if (Collision.isCollision(matrix, probe.getCells())) return false;
+
+    this.activePiece.col += dx;
+    this._emit(AUDIO_EVENT.MOVE);
+
+    // Grounded shift refreshes the lock delay (bounded by MAX_RESETS).
+    if (wasGrounded) {
+      this.lockDelay.reset();
+    }
+    return true;
+  }
+
+  /**
+   * Attempts to move the active piece down one cell.
+   *
+   * @param {boolean} isSoftDrop  If true, resets the gravity accumulator.
+   * @returns {boolean} Whether the piece moved down.
+   */
+  _moveDown(isSoftDrop = false) {
+    if (!this.activePiece || this.state !== GAME_STATE.PLAYING) return false;
+
+    const matrix = this._getMatrix();
+    const probe = this.activePiece.clone();
+    probe.row += 1;
+    if (Collision.isCollision(matrix, probe.getCells())) {
+      // Piece has landed — the caller (gravity) will stop consuming.
+      return false;
+    }
+
+    this.activePiece.row += 1;
+
+    // The piece lifted off the ground (e.g. kicked upward); cancel the lock
+    // timer so it only re-arms once it lands again.
+    if (!this._isGrounded()) {
+      this.lockDelay.disarm();
+    } else {
+      this.lockDelay.start();
+    }
+
+    if (isSoftDrop) {
+      this.gravity.resetAccumulator();
+    }
+    return true;
+  }
+
+  /**
+   * Rotates the active piece CW or CCW, applying SRS wall kicks.
+   *
+   * A successful grounded rotation refreshes the lock delay.
+   *
+   * @param {boolean} clockwise  True for CW, false for CCW.
+   */
+  _rotate(clockwise) {
+    if (!this.activePiece || this.state !== GAME_STATE.PLAYING) return;
+
+    const wasGrounded = this._isGrounded();
+    const matrix = this._getMatrix();
+    const nextRotation = this.activePiece.getNextRotation(!clockwise);
+    const kicks = this.activePiece.getWallKicks(!clockwise);
+
+    for (const [colOffset, rowOffset] of kicks) {
+      const probe = this.activePiece.clone();
+      probe.applyRotation(nextRotation, colOffset, rowOffset);
+      if (!Collision.isCollision(matrix, probe.getCells())) {
+        this.activePiece.applyRotation(nextRotation, colOffset, rowOffset);
+
+        // Grounded rotation refreshes the lock delay (bounded by MAX_RESETS).
+        if (wasGrounded) {
+          this.lockDelay.reset();
+        }
+        this._emit(AUDIO_EVENT.ROTATE);
+        return;
+      }
+    }
+  }
+
+  /**
+   * Hard drop — moves the piece to the bottom instantly and locks it.
+   *
+   * This is the only action that locks a piece immediately, bypassing the
+   * lock delay.  Points are awarded per cell plummeted (2/cell).
+   */
+  _hardDrop() {
+    if (!this.activePiece || this.state !== GAME_STATE.PLAYING) return;
+
+    const startRow = this.activePiece.row;
+    const matrix = this._getMatrix();
+
+    // Move down until collision.
+    while (!Collision.isCollision(matrix, this.activePiece.getCells())) {
+      this.activePiece.row += 1;
+    }
+    // The last iteration overshot by one; back it up.
+    this.activePiece.row -= 1;
+
+    // Award hard-drop points for the distance plummeted.
+    const distance = Math.max(0, this.activePiece.row - startRow);
+    this.score.addHardDrop(distance);
+
+    this.gravity.resetAccumulator();
+    this.lockDelay.disarm();
+    this.dropEffect.start(this._toVisibleRows(this.activePiece.getCells()), this.activePiece.colour, distance);
+    this.shakeEffect.start(5, 130);
+    this._emit(AUDIO_EVENT.DROP);
+    this._lockPiece();
+  }
+
+  /**
+   * Holds the current piece.  A piece can only be held once per drop.
+   */
+  _hold() {
+    if (!this.activePiece || this.state !== GAME_STATE.PLAYING) return;
+    if (this._holdUsed) return;
+
+    const current = this.activePiece;
+    const matrix = this._getMatrix();
+    this.lockDelay.disarm();
+
+    if (this.holdPiece) {
+      // Swap: held piece becomes active, current goes to hold.
+      const held = this.holdPiece;
+      this.holdPiece = new Tetromino(current.type);
+      this.activePiece = held;
+      this._holdUsed = true;
+      this.gravity.resetAccumulator();
+
+      // The held piece spawns at its original position, which may now be
+      // occupied by locked cells — treat that as a game over.
+      if (Collision.isCollision(matrix, this.activePiece.getCells())) {
+        this._endGame();
+        return;
+      }
+
+      // The swapped-in piece may be grounded immediately.
+      if (this._isGrounded()) {
+        this.lockDelay.start();
+      }
+      return;
+    }
+
+    // First hold: store current, spawn a fresh piece, and consume the
+    // once-per-drop allowance so the freshly spawned piece cannot be held
+    // again until the next drop locks.
+    this.holdPiece = new Tetromino(current.type);
+    this._holdUsed = true;
+    this._spawnNextPiece();
+  }
+
+  /**
+   * Locks the active piece onto the board.
+   *
+   * **Merge:** the piece's cells are written into the board grid.
+   * **Line clear:** if the merge completes one or more rows, the game
+   *   enters the `CLEARING` state — the board is frozen and the rows are
+   *   animated (flash + particles) for `LINE_CLEAR.ANIMATION_MS`.  Only
+   *   when the animation finishes do the rows collapse, the level tracker
+   *   advance, and the next piece spawn.
+   * **No clear:** with no full rows, the next piece spawns immediately.
+   */
+  _lockPiece() {
+    if (!this.activePiece) return;
+
+    this.board.lockCells(this.activePiece.getCells(), this.activePiece.colour);
+    this._emit(AUDIO_EVENT.LOCK);
+
+    // Capture the rows that are now full (before any collapse) so the
+    // animation can flash them.  The rows stay intact during CLEARING.
+    // Convert from absolute matrix rows to visible-row space so the flash
+    // lines up with what's actually drawn on the board.
+    const fullRows = this.board.getFullRowDetails()
+      .map((rowData) => ({ ...rowData, row: rowData.row - GRID.HIDDEN_ROWS }));
+
+    if (fullRows.length === 0) {
+      // No clear — continue immediately with a fresh drop. The hold flag
+      // resets here because this piece is now locked (new drop begins).
+      this.gravity.resetAccumulator();
+      this.lockDelay.disarm();
+      this._holdUsed = false;
+      this._spawnNextPiece();
+      return;
+    }
+
+    // Enter the clearing phase: freeze the board, arm the animation.
+    this.state = GAME_STATE.CLEARING;
+    this._clearElapsed = 0;
+    this.clearEffect.start(fullRows);
+    this._emit(AUDIO_EVENT.LINE_CLEAR);
+    this.shakeEffect.start(7 + fullRows.length * 1.5, 180);
+    this.gravity.resetAccumulator();
+    this.lockDelay.disarm();
+  }
+
+  /**
+   * Advances the line-clear animation and finalises the clear when done.
+   *
+   * During `CLEARING` the board remains fully intact (with the full rows
+   * visible) so the effect can flash them.  Once the animation duration
+   * elapses, the rows are removed (which collapses everything above them
+   * down — "shift above rows down"), the level tracker advances, and the
+   * next piece spawns.
+   *
+   * @param {number} dtMs  Tick duration in milliseconds.
+   */
+  _updateClearing(dtMs) {
+    this._clearElapsed += dtMs;
+    this.clearEffect.sync(this._clearElapsed);
+
+    if (this._clearElapsed < LINE_CLEAR.ANIMATION_MS) return;
+
+    // Animation complete — collapse rows and resume play.
+    this.clearEffect.reset();
+    this.board.clearFullRows();
+
+    const cleared = this.board.getLastClearedCount();
+    if (cleared > 0) {
+      // Award line-clear points using the level *before* any level-up
+      // granted by these lines (guideline ordering).
+      this.score.addLineClear(cleared, this.level.level);
+
+      // Advance level progression and speed up gravity when leveling up.
+      const gained = this.level.addLines(cleared);
+      if (gained > 0) {
+        this.gravity.setLevel(this.level.level);
+        this._emit(AUDIO_EVENT.LEVEL_UP);
+      }
+    }
+
+    this.gravity.resetAccumulator();
+    this.state = GAME_STATE.PLAYING;
+    // New drop begins — reset the hold flag so the player may hold again.
+    this._holdUsed = false;
+    this._spawnNextPiece();
+  }
+
+  /**
+   * Applies gravity — delta-time based, FPS-independent.
+   *
+   * Uses the Gravity module's `update()` which consumes the elapsed
+   * time and fires `onStep` for each cell the piece should descend.
+   * When the piece can no longer descend, gravity stops consuming
+   * intervals and the piece rests on the surface.
+   *
+   * @param {number} dtMs  Tick duration in milliseconds.
+   */
+  _applyGravity(dtMs) {
+    if (!this.activePiece || this.state !== GAME_STATE.PLAYING) return;
+
+    this.gravity.update(
+      dtMs,
+      // canDescend — predicate: may the piece move down one more cell?
+      () => {
+        if (!this.activePiece) return false;
+        const probe = this.activePiece.clone();
+        probe.row += 1;
+        return !Collision.isCollision(this._getMatrix(), probe.getCells());
+      },
+      // onStep — callback: move the piece down one cell.
+      () => {
+        if (!this.activePiece) return;
+        this.activePiece.row += 1;
+        // Award soft-drop points only for manually descended cells
+        // (i.e. while the player is holding the soft-drop key).
+        if (this.gravity.isSoftDropping) {
+          this.score.addSoftDrop(1);
+        }
+      },
+    );
+  }
+
+  /**
+   * Advances the lock-delay timer and locks the piece when it expires.
+   *
+   * The lock delay is only armed while the piece is grounded.  If the
+   * piece somehow becomes airborne again (rare — e.g. a wall kick lifts it),
+   * the timer is disarmed and will re-arm on the next landing.
+   *
+   * @param {number} dtMs  Tick duration in milliseconds.
+   */
+  _updateLockDelay(dtMs) {
+    if (!this.activePiece || this.state !== GAME_STATE.PLAYING) return;
+
+    // Keep the timer state consistent with groundedness.
+    const grounded = this._isGrounded();
+    if (grounded && !this.lockDelay.isActive) {
+      this.lockDelay.start();
+    } else if (!grounded) {
+      this.lockDelay.disarm();
+      return;
+    }
+
+    this.lockDelay.tick(dtMs);
+    if (this.lockDelay.isExpired) {
+      this.lockDelay.disarm();
+      this._lockPiece();
+    }
+  }
+}
+
+
+
+// ============================== main (inline, no HUD.js / AudioManager.js) ==============================
+const AUDIO_EVENT = new Proxy({}, { get: (t, k) => k }); // stub — sound not wired up yet
+
+const canvas = document.getElementById('game-canvas');
+const stage = document.getElementById('game-stage');
+const fpsEl = document.getElementById('fps-counter');
+const pauseOverlay = document.getElementById('pause-overlay');
+const pauseMenu = document.getElementById('pause-menu');
+const mainMenu = document.getElementById('main-menu');
+const gameOverMenu = document.getElementById('game-over-menu');
+const pauseActions = document.getElementById('pause-actions');
+const settingsActions = document.getElementById('settings-actions');
+
+const settings = new SettingsManager();
+
+const renderer = new Renderer(canvas, stage);
+renderer.setQuality(settings.get('graphicsQuality'));
+renderer.resize();
+renderer.startResizeListening();
+
+const input = new InputManager({ settings });
+input.attach();
+input.setKeyBindings(settings.get('keyboardRemap'));
+input.setTouchSensitivity(settings.get('touchSensitivity'));
+
+const game = new Game({ input });
+game.start();
+
+let highScore = loadHighScore();
+
+// ---- Minimal inline HUD (text panels + simple hold/next previews) ----
+function initHUD() {
+  updateHighScoreDisplay(highScore);
+}
+function updateHighScoreDisplay(v) {
+  const el = document.getElementById('hud-high-score');
+  if (el) el.textContent = String(Math.max(0, Math.floor(v))).padStart(6, '0');
+}
+function drawMiniPiece(cnv, type) {
+  if (!cnv) return;
+  const ctx = cnv.getContext('2d');
+  const w = cnv.clientWidth || 64;
+  const h = cnv.clientHeight || 64;
+  cnv.width = w; cnv.height = h;
+  ctx.clearRect(0, 0, w, h);
+  if (!type) return;
+  const cells = getCells(type, 0);
+  const color = PALETTE.PIECES[type];
+  const maxCol = Math.max(...cells.map(([r, c]) => c)) + 1;
+  const maxRow = Math.max(...cells.map(([r, c]) => r)) + 1;
+  const cell = Math.min(w / maxCol, h / maxRow) * 0.8;
+  const offX = (w - cell * maxCol) / 2;
+  const offY = (h - cell * maxRow) / 2;
+  ctx.fillStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8;
+  for (const [r, c] of cells) {
+    ctx.fillRect(offX + c * cell + 2, offY + r * cell + 2, cell - 4, cell - 4);
+  }
+}
+function syncHUD(state) {
+  const scoreEl = document.getElementById('hud-score');
+  const levelEl = document.getElementById('hud-level');
+  const linesEl = document.getElementById('hud-lines');
+  const comboEl = document.getElementById('hud-combo');
+  if (scoreEl) scoreEl.textContent = String(state.score).padStart(6, '0');
+  if (levelEl) levelEl.textContent = String(state.level).padStart(2, '0');
+  if (linesEl) linesEl.textContent = String(state.lines).padStart(3, '0');
+  if (comboEl) comboEl.textContent = state.combo > 1 ? String(state.combo) : '—';
+
+  drawMiniPiece(document.getElementById('preview-hold'), state.hold);
+  const next = state.next || [];
+  for (let i = 0; i < 5; i++) {
+    drawMiniPiece(document.querySelector(`[data-preview-slot="${i}"]`), next[i]);
+  }
+}
+
+document.getElementById('btn-pause')?.addEventListener('click', () => {
+  game.togglePause();
+  showSettings(false);
+  syncGameChrome();
+});
+
+document.getElementById('btn-settings')?.addEventListener('click', () => {
+  if (game.state === GAME_STATE.PLAYING) game.pause();
+  if (game.state === GAME_STATE.PAUSED) {
+    showSettings(true);
+    syncGameChrome();
+    document.getElementById('setting-motion')?.focus();
+  }
+});
+
+document.getElementById('pause-resume')?.addEventListener('click', () => {
+  showSettings(false);
+  game.resume();
+  syncGameChrome();
+});
+
+document.getElementById('pause-restart')?.addEventListener('click', () => {
+  showSettings(false);
+  game.restart();
+  syncGameChrome();
+});
+
+document.getElementById('pause-settings')?.addEventListener('click', () => {
+  showSettings(true);
+  document.getElementById('setting-motion')?.focus();
+});
+
+document.getElementById('settings-back')?.addEventListener('click', () => {
+  showSettings(false);
+  document.getElementById('pause-settings')?.focus();
+});
+
+document.getElementById('pause-quit')?.addEventListener('click', () => {
+  showSettings(false);
+  game.quitToMenu();
+  syncGameChrome();
+});
+
+document.getElementById('menu-start')?.addEventListener('click', () => {
+  game.start();
+  syncGameChrome();
+});
+
+document.getElementById('game-over-restart')?.addEventListener('click', () => {
+  game.restart();
+  syncGameChrome();
+});
+
+document.getElementById('game-over-menu-button')?.addEventListener('click', () => {
+  game.quitToMenu();
+  syncGameChrome();
+});
+
+const motionButton = document.getElementById('setting-motion');
+const motionValue = document.getElementById('setting-motion-value');
+let motionEnabled = true;
+try {
+  motionEnabled = localStorage.getItem('neon-tetris-motion') !== 'off';
+} catch { /* private browsing */ }
+function setMotionEnabled(enabled) {
+  motionEnabled = enabled;
+  document.body.classList.toggle('reduce-effects', !enabled);
+  motionButton?.setAttribute('aria-pressed', String(enabled));
+  if (motionValue) motionValue.textContent = enabled ? 'On' : 'Off';
+  try { localStorage.setItem('neon-tetris-motion', enabled ? 'on' : 'off'); } catch { /* no storage */ }
+}
+motionButton?.addEventListener('click', () => setMotionEnabled(!motionEnabled));
+setMotionEnabled(motionEnabled);
+
+const qualitySelect = document.getElementById('setting-graphics-quality');
+if (qualitySelect) {
+  qualitySelect.value = settings.get('graphicsQuality') || 'medium';
+  qualitySelect.addEventListener('change', () => {
+    const quality = qualitySelect.value;
+    renderer.setQuality(quality);
+    settings.set('graphicsQuality', quality);
+  });
+}
+
+const themeSelect = document.getElementById('setting-theme');
+if (themeSelect) {
+  themeSelect.value = settings.get('theme') || 'neon';
+  themeSelect.addEventListener('change', () => {
+    const theme = themeSelect.value;
+    document.body.dataset.theme = theme;
+    settings.set('theme', theme);
+  });
+}
+
+const remapFields = document.querySelectorAll('[data-remap-action]');
+remapFields.forEach((field) => {
+  const action = field.getAttribute('data-remap-action');
+  const current = settings.get('keyboardRemap')?.[action];
+  if (current) field.value = current;
+  field.addEventListener('keydown', (event) => {
+    event.preventDefault();
+    const code = event.code || event.key;
+    if (!code) return;
+    const next = code === 'Escape' ? 'Escape' : code;
+    field.value = next;
+    const remap = { ...settings.get('keyboardRemap') };
+    remap[action] = next;
+    settings.set('keyboardRemap', remap);
+    input.setKeyBindings(remap);
+  });
+});
+
+const touchSensitivity = document.getElementById('setting-touch-sensitivity');
+const touchSensitivityValue = document.getElementById('setting-touch-sensitivity-value');
+if (touchSensitivity && touchSensitivityValue) {
+  touchSensitivity.value = String(Math.round((settings.get('touchSensitivity') || 0.5) * 100));
+  touchSensitivityValue.textContent = `${touchSensitivity.value}%`;
+  touchSensitivity.addEventListener('input', () => {
+    const value = Number(touchSensitivity.value) / 100;
+    input.setTouchSensitivity(value);
+    settings.set('touchSensitivity', value);
+    touchSensitivityValue.textContent = `${touchSensitivity.value}%`;
+  });
+}
+// NOTE: volume sliders are left inert — no AudioManager wired up yet.
+
+let lastChromeState = null;
+
+function showSettings(show) {
+  pauseActions.hidden = show;
+  settingsActions.hidden = !show;
+}
+
+function syncGameChrome() {
+  const paused = game.state === GAME_STATE.PAUSED;
+  const atMenu = game.state === GAME_STATE.MENU;
+  const gameOver = game.state === GAME_STATE.GAME_OVER;
+  const overlayVisible = paused || atMenu || gameOver;
+
+  pauseOverlay.hidden = !overlayVisible;
+  pauseOverlay.setAttribute('aria-hidden', String(!overlayVisible));
+  pauseMenu.hidden = !paused;
+  mainMenu.hidden = !atMenu;
+  gameOverMenu.hidden = !gameOver;
+
+  if (gameOver) {
+    document.getElementById('game-over-score').textContent = game.score.score.toLocaleString();
+    document.getElementById('game-over-high-score').textContent = highScore.toLocaleString();
+  }
+
+  const pauseButton = document.getElementById('btn-pause');
+  if (pauseButton) {
+    const playable = game.state === GAME_STATE.PLAYING || paused;
+    pauseButton.disabled = !playable;
+    pauseButton.setAttribute('aria-pressed', String(paused));
+    pauseButton.setAttribute('aria-label', paused ? 'Resume game' : 'Pause game');
+    pauseButton.querySelector('.btn-icon').textContent = paused ? '▶' : '⏸';
+    pauseButton.querySelector('.btn-label').textContent = paused ? 'Resume' : 'Pause';
+  }
+
+  const settingsButton = document.getElementById('btn-settings');
+  if (settingsButton) {
+    settingsButton.disabled = !(game.state === GAME_STATE.PLAYING || paused);
+  }
+
+  if (lastChromeState !== game.state) {
+    if (paused) document.getElementById('pause-resume')?.focus();
+    if (atMenu) document.getElementById('menu-start')?.focus();
+    if (gameOver) document.getElementById('game-over-restart')?.focus();
+    lastChromeState = game.state;
+  }
+}
+
+let frameCount = 0;
+let lastReportTime = performance.now();
+function sampleFps(now) {
+  frameCount += 1;
+  const elapsed = now - lastReportTime;
+  if (elapsed >= 1000) {
+    fpsEl.textContent = `${Math.round((frameCount * 1000) / elapsed)} FPS`;
+    frameCount = 0;
+    lastReportTime = now;
+  }
+}
+
+function tick(dtMs) {
+  game.update(dtMs);
+}
+
+function render() {
+  const state = game.getRenderState();
+  game.consumeEvents(); // audio not wired up — events discarded for now
+
+  if (state.score > highScore) {
+    highScore = saveHighScore(state.score);
+    updateHighScoreDisplay(highScore);
+  }
+
+  syncGameChrome();
+  syncHUD(state);
+
+  renderer.render(state.board, {
+    piece: state.piece,
+    ghost: state.ghost,
+    clearEffect: game.clearEffect,
+    dropEffect: game.dropEffect,
+    shakeEffect: game.shakeEffect,
+  });
+}
+
+function renderWithFps() {
+  render();
+  sampleFps(performance.now());
+}
+
+const loop = new GameLoop({ tick, render: renderWithFps }, CANVAS.FPS);
+
+function boot() {
+  initHUD();
+  updateHighScoreDisplay(highScore);
+  syncGameChrome();
+  loop.start();
+  console.info('[NEON TETRIS] Standalone build — keyboard controls active.');
+}
+
+boot();
+
+</script>
+</body>
+</html>
