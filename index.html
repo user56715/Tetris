@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#070012" />
+  <meta
+    name="description"
+    content="NEON TETRIS — a professional neon arcade Tetris game built with HTML5 Canvas and modern ES6 JavaScript."
+  />
+  <title>NEON TETRIS</title>
+
+  <!--
+    Neon display + body fonts (Orbitron / Rajdhani).
+    For fully offline builds, self-host the woff2 files in assets/fonts
+    and replace these links with local @font-face declarations.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ======================= Header / Title Bar ======================= -->
+    <header class="app-header">
+      <h1 class="app-title" aria-label="Neon Tetris">
+        NEON<span class="app-title-accent">TETRIS</span>
+      </h1>
+      <div class="header-controls">
+        <button
+          class="btn"
+          id="btn-pause"
+          type="button"
+          aria-label="Pause game"
+          aria-pressed="false"
+        >
+          <span class="btn-icon" aria-hidden="true">⏸</span>
+          Pause
+        </button>
+        <button
+          class="btn"
+          id="btn-settings"
+          type="button"
+          aria-label="Settings"
+        >
+          <span class="btn-icon" aria-hidden="true">⚙</span>
+          Settings
+        </button>
+      </div>
+    </header>
+
+    <!-- ======================= Game Arena ======================= -->
+    <div class="game-arena">
+      <!-- Playfield column -->
+      <section class="playfield-column">
+        <div class="game-stage" id="game-stage" aria-label="Tetris playfield">
+          <canvas id="game-canvas" aria-label="Game canvas">
+            <p class="no-canvas">
+              Your browser does not support the HTML5 canvas element.
+            </p>
+          </canvas>
+        </div>
+      </section>
+
+      <!-- Right sidebar -->
+      <aside class="sidebar" aria-label="Game information panels">
+        <!-- Hold Piece -->
+        <section class="panel panel-hold" aria-labelledby="panel-hold-title">
+          <h2 class="panel-title" id="panel-hold-title">Hold</h2>
+          <div class="piece-preview">
+            <canvas id="preview-hold" class="preview-canvas" aria-label="Held piece preview"></canvas>
+          </div>
+        </section>
+
+        <!-- Next Piece -->
+        <section class="panel panel-next" aria-labelledby="panel-next-title">
+          <h2 class="panel-title" id="panel-next-title">Next</h2>
+          <div class="piece-preview">
+            <canvas id="preview-next" class="preview-canvas" aria-label="Next piece preview"></canvas>
+          </div>
+        </section>
+
+        <!-- Score -->
+        <section class="panel panel-score" aria-labelledby="panel-score-title">
+          <h2 class="panel-title" id="panel-score-title">Score</h2>
+          <div class="panel-value" id="hud-score">000000</div>
+        </section>
+
+        <!-- High Score -->
+        <section class="panel panel-high-score" aria-labelledby="panel-high-title">
+          <h2 class="panel-title" id="panel-high-title">High Score</h2>
+          <div class="panel-value" id="hud-high-score">000000</div>
+        </section>
+
+        <!-- Level -->
+        <section class="panel panel-level" aria-labelledby="panel-level-title">
+          <h2 class="panel-title" id="panel-level-title">Level</h2>
+          <div class="panel-value" id="hud-level">01</div>
+        </section>
+
+        <!-- Combo -->
+        <section class="panel panel-combo" aria-labelledby="panel-combo-title">
+          <h2 class="panel-title" id="panel-combo-title">Combo</h2>
+          <div class="panel-value" id="hud-combo">—</div>
+        </section>
+
+        <!-- Lines -->
+        <section class="panel panel-lines" aria-labelledby="panel-lines-title">
+          <h2 class="panel-title" id="panel-lines-title">Lines</h2>
+          <div class="panel-value" id="hud-lines">000</div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- ======================= Footer ======================= -->
+    <footer class="app-footer">
+      <span>NEON TETRIS v1.0</span>
+      <span id="fps-counter" aria-live="off">-- FPS</span>
+    </footer>
+  </div>
+
+  <!-- Application entry point (ES6 module). -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
