@@ -40,7 +40,7 @@
           aria-pressed="false"
         >
           <span class="btn-icon" aria-hidden="true">⏸</span>
-          Pause
+          <span class="btn-label">Pause</span>
         </button>
         <button
           class="btn"
@@ -79,9 +79,13 @@
 
         <!-- Next Piece -->
         <section class="panel panel-next" aria-labelledby="panel-next-title">
-          <h2 class="panel-title" id="panel-next-title">Next</h2>
-          <div class="piece-preview">
-            <canvas id="preview-next" class="preview-canvas" aria-label="Next piece preview"></canvas>
+          <h2 class="panel-title" id="panel-next-title">Next 5</h2>
+          <div id="preview-next" class="next-queue" aria-label="Next five pieces">
+            <div class="next-queue-item"><canvas data-preview-slot="0" aria-label="Next piece 1"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="1" aria-label="Next piece 2"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="2" aria-label="Next piece 3"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="3" aria-label="Next piece 4"></canvas></div>
+            <div class="next-queue-item"><canvas data-preview-slot="4" aria-label="Next piece 5"></canvas></div>
           </div>
         </section>
 
@@ -115,6 +119,98 @@
           <div class="panel-value" id="hud-lines">000</div>
         </section>
       </aside>
+    </div>
+
+    <!-- Pause / menu overlay. It sits above the frozen game with a blurred backdrop. -->
+    <div id="pause-overlay" class="pause-overlay" hidden aria-hidden="true">
+      <section class="pause-menu" id="pause-menu" role="dialog" aria-modal="true" aria-labelledby="pause-menu-title">
+        <div id="pause-actions">
+          <p class="pause-kicker">Game paused</p>
+          <h2 id="pause-menu-title">Pause Menu</h2>
+          <p class="pause-shortcut">Press <kbd>Esc</kbd> or <kbd>P</kbd> to resume</p>
+          <div class="pause-menu-actions">
+            <button class="menu-btn menu-btn-primary" id="pause-resume" type="button">Resume</button>
+            <button class="menu-btn" id="pause-restart" type="button">Restart</button>
+            <button class="menu-btn" id="pause-settings" type="button">Settings</button>
+            <button class="menu-btn menu-btn-danger" id="pause-quit" type="button">Quit to Menu</button>
+          </div>
+        </div>
+        <div id="settings-actions" hidden>
+          <p class="pause-kicker">Pause menu</p>
+          <h2>Settings</h2>
+          <button class="menu-btn setting-row" id="setting-motion" type="button" aria-pressed="true">
+            <span>Queue animations</span><span id="setting-motion-value">On</span>
+          </button>
+          <div class="settings-grid" aria-label="Settings controls">
+            <div class="audio-settings" aria-label="Audio controls">
+              <label for="setting-master-volume">Master <output id="setting-master-volume-value">65%</output></label>
+              <input id="setting-master-volume" type="range" min="0" max="100" step="1" value="65" />
+              <label for="setting-music-volume">Music <output id="setting-music-volume-value">28%</output></label>
+              <input id="setting-music-volume" type="range" min="0" max="100" step="1" value="28" />
+              <label for="setting-effects-volume">Effects <output id="setting-effects-volume-value">72%</output></label>
+              <input id="setting-effects-volume" type="range" min="0" max="100" step="1" value="72" />
+            </div>
+            <div class="setting-group">
+              <label for="setting-graphics-quality">Graphics quality</label>
+              <select id="setting-graphics-quality">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="setting-theme">Theme</label>
+              <select id="setting-theme">
+                <option value="neon">Neon</option>
+                <option value="aurora">Aurora</option>
+                <option value="midnight">Midnight</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label for="setting-touch-sensitivity">Touch sensitivity <output id="setting-touch-sensitivity-value">50%</output></label>
+              <input id="setting-touch-sensitivity" type="range" min="0" max="100" step="1" value="50" />
+            </div>
+            <div class="setting-group remap-group">
+              <span class="setting-group-title">Keyboard remapping</span>
+              <div class="remap-grid">
+                <label>Move Left<input type="text" data-remap-action="moveLeft" value="ArrowLeft" readonly /></label>
+                <label>Move Right<input type="text" data-remap-action="moveRight" value="ArrowRight" readonly /></label>
+                <label>Soft Drop<input type="text" data-remap-action="softDrop" value="ArrowDown" readonly /></label>
+                <label>Hard Drop<input type="text" data-remap-action="hardDrop" value="Space" readonly /></label>
+                <label>Rotate CW<input type="text" data-remap-action="rotateCW" value="ArrowUp" readonly /></label>
+                <label>Rotate CCW<input type="text" data-remap-action="rotateCCW" value="KeyZ" readonly /></label>
+                <label>Hold<input type="text" data-remap-action="hold" value="KeyC" readonly /></label>
+                <label>Pause<input type="text" data-remap-action="pause" value="Escape" readonly /></label>
+              </div>
+              <p class="setting-hint">Press any key to remap an action.</p>
+            </div>
+          </div>
+          <p class="pause-shortcut">Pause shortcut: <kbd>Esc</kbd> or <kbd>P</kbd></p>
+          <button class="menu-btn" id="settings-back" type="button">Back</button>
+        </div>
+      </section>
+
+      <section class="pause-menu" id="main-menu" role="dialog" aria-modal="true" aria-labelledby="main-menu-title" hidden>
+        <p class="pause-kicker">Neon Tetris</p>
+        <h2 id="main-menu-title">Main Menu</h2>
+        <p class="pause-shortcut">Ready for a new run?</p>
+        <div class="pause-menu-actions">
+          <button class="menu-btn menu-btn-primary" id="menu-start" type="button">Start Game</button>
+        </div>
+      </section>
+
+      <section class="pause-menu game-over-menu" id="game-over-menu" role="dialog" aria-modal="true" aria-labelledby="game-over-title" hidden>
+        <p class="pause-kicker">Run complete</p>
+        <h2 id="game-over-title" class="game-over-title">Game Over</h2>
+        <div class="game-over-stats" aria-live="polite">
+          <div><span>Score</span><strong id="game-over-score">0</strong></div>
+          <div><span>High Score</span><strong id="game-over-high-score">0</strong></div>
+        </div>
+        <div class="pause-menu-actions">
+          <button class="menu-btn menu-btn-primary" id="game-over-restart" type="button">Restart</button>
+          <button class="menu-btn" id="game-over-menu-button" type="button">Return to Menu</button>
+        </div>
+      </section>
     </div>
 
     <!-- ======================= Footer ======================= -->
