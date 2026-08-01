@@ -807,6 +807,71 @@ body.reduce-effects .pause-menu-actions .menu-btn {
   animation: none;
 }
 
+/* ===================== Touch controls (mobile) ===================== */
+.touch-controls {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 14px 4px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.touch-controls-row {
+  display: grid;
+  gap: 10px;
+}
+.touch-controls-move {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.touch-controls-actions {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+.touch-btn {
+  appearance: none;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: rgba(0, 229, 255, 0.08);
+  color: #EAEAFF;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.4rem;
+  border-radius: 12px;
+  padding: 14px 0;
+  min-height: 52px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s ease, transform 0.1s ease;
+}
+.touch-btn:active {
+  background: rgba(0, 229, 255, 0.28);
+  transform: scale(0.96);
+}
+.touch-btn-secondary {
+  font-size: 0.85rem;
+  border-color: rgba(176, 38, 255, 0.4);
+  background: rgba(176, 38, 255, 0.08);
+}
+.touch-btn-secondary:active {
+  background: rgba(176, 38, 255, 0.28);
+}
+.touch-btn-primary {
+  border-color: rgba(255, 41, 101, 0.5);
+  background: rgba(255, 41, 101, 0.12);
+  font-size: 0.85rem;
+}
+.touch-btn-primary:active {
+  background: rgba(255, 41, 101, 0.32);
+}
+
+/* Show the pad on touch-capable devices, or narrow screens as a fallback. */
+@media (pointer: coarse), (max-width: 720px) {
+  .touch-controls {
+    display: flex;
+  }
+}
 </style>
 </head>
 <body>
@@ -996,6 +1061,21 @@ body.reduce-effects .pause-menu-actions .menu-btn {
           <button class="menu-btn" id="game-over-menu-button" type="button">Return to Menu</button>
         </div>
       </section>
+    </div>
+
+    <!-- ======================= Touch Controls (mobile) ======================= -->
+    <div class="touch-controls" id="touch-controls" aria-label="Touch controls">
+      <div class="touch-controls-row touch-controls-move">
+        <button class="touch-btn" type="button" data-touch-action="moveLeft" aria-label="Move left">◀</button>
+        <button class="touch-btn" type="button" data-touch-action="softDrop" aria-label="Soft drop">▼</button>
+        <button class="touch-btn" type="button" data-touch-action="moveRight" aria-label="Move right">▶</button>
+      </div>
+      <div class="touch-controls-row touch-controls-actions">
+        <button class="touch-btn touch-btn-secondary" type="button" data-touch-tap="hold" aria-label="Hold">HOLD</button>
+        <button class="touch-btn touch-btn-secondary" type="button" data-touch-tap="rotateCCW" aria-label="Rotate counter-clockwise">↺</button>
+        <button class="touch-btn touch-btn-secondary" type="button" data-touch-tap="rotateCW" aria-label="Rotate clockwise">↻</button>
+        <button class="touch-btn touch-btn-primary" type="button" data-touch-tap="hardDrop" aria-label="Hard drop">DROP</button>
+      </div>
     </div>
 
     <!-- ======================= Footer ======================= -->
@@ -5451,6 +5531,39 @@ function boot() {
 
 boot();
 
+// ---- Touch controls wiring (mobile) ----
+// Held actions (move/soft-drop) use press-on-down / release-on-up so DAS/ARR
+// and soft-drop behave the same as the equivalent held key. Edge actions
+// (rotate/hold/hard-drop) fire once per tap via tapAction().
+(function wireTouchControls() {
+  const pad = document.getElementById('touch-controls');
+  if (!pad) return;
+
+  const heldButtons = pad.querySelectorAll('[data-touch-action]');
+  heldButtons.forEach((btn) => {
+    const action = btn.getAttribute('data-touch-action');
+    const start = (e) => { e.preventDefault(); input.pressAction(action); };
+    const end = (e) => { e.preventDefault(); input.releaseAction(action); };
+    btn.addEventListener('pointerdown', start);
+    btn.addEventListener('pointerup', end);
+    btn.addEventListener('pointercancel', end);
+    btn.addEventListener('pointerleave', end);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+
+  const tapButtons = pad.querySelectorAll('[data-touch-tap]');
+  tapButtons.forEach((btn) => {
+    const action = btn.getAttribute('data-touch-tap');
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      input.tapAction(action);
+      unlockAudioNoop();
+    });
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+
+  function unlockAudioNoop() { /* placeholder — audio not wired up in this build */ }
+})();
 </script>
 </body>
 </html>
